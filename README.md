@@ -94,8 +94,3 @@ quiet-scores-react/
 ├── vercel.json         # Vercel configuration
 └── package.json        # Dependencies
 ```
-
-
-## 📝 License
-
-MIT
