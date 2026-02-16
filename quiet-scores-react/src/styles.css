@@ -1,23 +1,23 @@
-/* Pitch Black Theme - Consistent Dark Mode Colors */
+/* Soft Dark Theme */
 
 /* CSS Variables for consistent dark mode */
 :root {
-    --bg-primary: #000000;
-    --bg-secondary: #1a1a1a;
-    --bg-tertiary: #2d2d2d;
-    --bg-card: #050505;
-    --bg-card-secondary: #0a0a0a;
-    --border-primary: #333333;
-    --border-secondary: #444444;
-    --text-primary: #ffffff;
-    --text-secondary: #cccccc;
-    --text-muted: #888888;
-    --accent-primary: #007bff;
-    --accent-secondary: #0056b3;
-    --base-empty: #2d2d2d;
-    --base-occupied: #007bff;
-    --count-dot: #2d2d2d;
-    --count-dot-border: #444444;
+    --bg-primary: #121218;
+    --bg-secondary: #1c1c24;
+    --bg-tertiary: #2a2a35;
+    --bg-card: #16161e;
+    --bg-card-secondary: #1a1a22;
+    --border-primary: #2e2e3a;
+    --border-secondary: #3a3a48;
+    --text-primary: #e8e8ed;
+    --text-secondary: #b0b0bc;
+    --text-muted: #6e6e80;
+    --accent-primary: #4d8eff;
+    --accent-secondary: #3a6fd8;
+    --base-empty: #2a2a35;
+    --base-occupied: #4d8eff;
+    --count-dot: #2a2a35;
+    --count-dot-border: #3a3a48;
     --count-label: #666666;
 }
 
@@ -49,104 +49,6 @@ body {
 }
 
 /* Score Ticker Styles */
-.score-ticker-container {
-    background: #0a0a0a;
-    border-bottom: 1px solid var(--border-primary);
-    height: 45px;
-    width: 100%;
-    overflow: visible; /* Changed from hidden to show dropdown */
-    position: fixed;
-    top: 60px; /* Below the 60px site header */
-    left: 0;
-    z-index: 99;
-    display: flex;
-    align-items: center;
-}
-
-.score-ticker-track-container {
-    flex: 1;
-    overflow: hidden;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    position: relative;
-}
-
-.score-ticker-track {
-    display: flex;
-    gap: 0;
-    padding: 0;
-    width: max-content;
-}
-
-.score-ticker-track.scrolling {
-    animation: ticker-scroll 60s linear infinite;
-}
-
-.score-ticker-track:hover {
-    animation-play-state: paused;
-}
-
-.ticker-item {
-    display: flex;
-    align-items: center;
-    padding: 0 20px;
-    height: 100%;
-    border-right: 1px solid rgba(255, 255, 255, 0.05);
-    white-space: nowrap;
-    cursor: pointer;
-    transition: background 0.2s ease;
-}
-
-.ticker-item:hover {
-    background: rgba(255, 255, 255, 0.03);
-}
-
-.ticker-teams {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-}
-
-.ticker-team-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.7rem;
-    font-weight: 700;
-    min-width: 100px;
-}
-
-.ticker-logo {
-    width: 12px;
-    height: 12px;
-    object-fit: contain;
-}
-
-.ticker-score {
-    margin-left: auto;
-    color: var(--text-primary);
-}
-
-.ticker-status {
-    margin-left: 12px;
-    font-size: 0.6rem;
-    font-weight: 800;
-    color: #dc3545; /* Red for live */
-    text-transform: uppercase;
-}
-
-.ticker-status.final,
-.ticker-status.scheduled {
-    color: var(--text-muted);
-}
-
-@keyframes ticker-scroll {
-    0% { transform: translateX(0); }
-    100% { transform: translateX(-50%); }
-}
-
-
 
 /* PWA-specific styles - only apply when app is installed */
 body.pwa-mode {
@@ -173,10 +75,10 @@ body.pwa-mode {
     top: 0;
     left: 0;
     width: 100vw;
-    background: rgba(10, 10, 10, 0.9);
+    background: rgba(18, 18, 24, 0.92);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid var(--border-primary);
     z-index: 1000;
     display: grid;
     grid-template-columns: auto 1fr auto;
@@ -189,7 +91,7 @@ body.pwa-mode {
 .header-left {
     display: flex;
     align-items: center;
-    gap: 20px;
+    gap: 10px;
 }
 
 .header-center {
@@ -323,7 +225,7 @@ body.pwa-mode {
 .week-dates {
     font-size: 16px;
     font-weight: 600;
-    color: #ffffff;
+    color: var(--text-primary);
 }
 
 /* Week buttons styling */
@@ -391,9 +293,9 @@ body.pwa-mode {
 }
 
 .date-display {
-    background: #1a1a1a;
-    color: #ffffff;
-    border: 1px solid #333;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-primary);
     border-radius: 20px;
     padding: 8px 16px;
     font-size: 14px;
@@ -404,13 +306,13 @@ body.pwa-mode {
 }
 
 .date-display:hover {
-    border-color: #007bff;
+    border-color: var(--accent-primary);
 }
 
 .date-picker input[type="date"] {
-    background: #1a1a1a;
-    color: #ffffff;
-    border: 1px solid #333;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-primary);
     border-radius: 20px;
     padding: 8px 16px;
     font-size: 14px;
@@ -419,12 +321,12 @@ body.pwa-mode {
 }
 
 .date-picker input[type="date"]:hover {
-    border-color: #007bff;
+    border-color: var(--accent-primary);
 }
 
 .date-picker input[type="date"]:focus {
     outline: none;
-    border-color: #007bff;
+    border-color: var(--accent-primary);
 }
 
 /* Live games counter - now moved to site header */
@@ -1208,13 +1110,13 @@ body.pwa-mode {
 
 /* Score cards with dark theme and team logos */
 .score-card {
-    background: rgba(10, 10, 10, 0.8);
+    background: var(--bg-card);
     border-radius: 12px;
     padding: 16px;
     margin: 0;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
     transition: all 0.2s ease;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--border-primary);
     position: relative;
     overflow: visible;
     cursor: pointer;
@@ -1224,7 +1126,7 @@ body.pwa-mode {
     transform: translateY(-2px);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
     border-color: rgba(255, 255, 255, 0.15);
-    background: rgba(15, 15, 15, 0.9);
+    background: var(--bg-card-secondary);
 }
 
 /* Score change animation removed - scores will update without visual effects */
@@ -1255,7 +1157,7 @@ body.pwa-mode {
 
 .sport-type {
     background: transparent;
-    color: #007bff;
+    color: var(--accent-primary);
     padding: 6px 12px;
     font-size: 0.8rem;
     font-weight: 600;
@@ -1405,9 +1307,8 @@ body.pwa-mode {
 }
 
 .team:hover {
-    background: rgba(255, 255, 255, 0.02);
+    background: transparent;
     border-color: transparent;
-    transform: translateY(-1px);
 }
 
 
@@ -1467,13 +1368,13 @@ body.pwa-mode {
 .team-name {
     font-size: 0.8rem;
     font-weight: 600;
-    color: #ffffff;
+    color: var(--text-primary);
     cursor: pointer;
     transition: color 0.2s ease;
 }
 
 .team-name:hover {
-    color: var(--accent-primary);
+    color: inherit;
 }
 
 .team-score {
@@ -1487,23 +1388,23 @@ body.pwa-mode {
     justify-content: space-between;
     align-items: center;
     padding-top: 15px;
-    border-top: 1px solid #444;
+    border-top: 1px solid var(--border-secondary);
     font-size: 0.9rem;
-    color: #cccccc;
+    color: var(--text-secondary);
 }
 
 .game-time, .game-date {
     background: rgba(255, 255, 255, 0.1);
     padding: 5px 10px;
     border-radius: 15px;
-    border: 1px solid #444;
+    border: 1px solid var(--border-secondary);
 }
 
 /* Game time styling */
 .game-time {
     font-size: 14px;
     font-weight: 600;
-    color: #ffffff;
+    color: var(--text-primary);
     text-align: center;
     margin-bottom: 5px;
 }
@@ -1525,11 +1426,11 @@ body.pwa-mode {
 .info, .error {
     text-align: center;
     padding: 40px;
-    color: #cccccc;
+    color: var(--text-secondary);
     font-size: 1.1rem;
-    background: #1a1a1a;
+    background: var(--bg-secondary);
     border-radius: 15px;
-    border: 1px solid #333;
+    border: 1px solid var(--border-primary);
 }
 
 .error {
@@ -1605,7 +1506,7 @@ body.pwa-mode {
 
 /* Hover effect for winner teams */
 .team.winner:hover {
-    background: rgba(76, 175, 80, 0.05);
+    background: transparent;
 }
 
 /* Pulse animation for live games */
@@ -3669,8 +3570,8 @@ body.pwa-mode {
 }
 
 .game-leaders-header {
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
+    display: flex;
+    justify-content: space-around;
     align-items: center;
     padding: 20px 30px;
     background: rgba(255, 255, 255, 0.02);
@@ -3690,6 +3591,16 @@ body.pwa-mode {
     background: rgba(255, 255, 255, 0.05);
     border-radius: 50%;
     padding: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.game-leaders-team-header .team-logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
 }
 
 .game-leaders-team-abbr {
@@ -3775,9 +3686,12 @@ body.pwa-mode {
     height: 42px;
     border-radius: 50%;
     border: 2px solid var(--bg-tertiary);
-    background: #111;
+    background: var(--bg-secondary);
     overflow: hidden;
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .game-leaders-player-image img {
@@ -3791,7 +3705,7 @@ body.pwa-mode {
     height: 42px;
     border-radius: 50%;
     border: 2px solid var(--bg-tertiary);
-    background: #111;
+    background: var(--bg-secondary);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -4713,7 +4627,7 @@ body.pwa-mode {
 
 .summary-tab.active {
     color: var(--text-primary);
-    border-bottom-color: #007bff;
+    border-bottom-color: var(--accent-primary);
 }
 
 .game-summary-grid {
@@ -4752,7 +4666,16 @@ body.pwa-mode {
     display: flex;
     flex-direction: column;
     gap: 20px;
-    min-width: 0; /* Prevent overflow issues */
+    min-width: 0;
+}
+
+/* Preview layout: single column, centered */
+.preview-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    max-width: 900px;
+    margin: 0 auto;
 }
 
 /* Redesigning existing components for the grid */
@@ -5196,7 +5119,7 @@ body.pwa-mode {
 
 .summary-tab.active {
     color: var(--text-primary);
-    border-bottom-color: #007bff;
+    border-bottom-color: var(--accent-primary);
 }
 
 .game-summary-grid {
@@ -5381,7 +5304,26 @@ body.pwa-mode {
 .header-left {
     display: flex;
     align-items: center;
-    gap: 20px;
+    gap: 10px;
+}
+
+.header-back-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: none;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: background 0.15s ease;
+    flex-shrink: 0;
+}
+
+.header-back-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
 }
 
 .header-logo-group {
@@ -5417,7 +5359,7 @@ body.pwa-mode {
     align-items: center;
     justify-content: center;
     border-right: 1px solid var(--border-primary);
-    background: #0a0a0a;
+    background: var(--bg-card-secondary);
     cursor: pointer;
     color: var(--text-muted);
     transition: all 0.2s ease;
@@ -5438,7 +5380,7 @@ body.pwa-mode {
     position: absolute;
     top: 45px;
     left: 0;
-    background: #0a0a0a;
+    background: var(--bg-card-secondary);
     border: 1px solid var(--border-primary);
     border-top: none;
     border-radius: 0 0 12px 0;
@@ -5472,4 +5414,213 @@ body.pwa-mode {
     background: var(--accent-primary);
     color: white;
     border-color: var(--accent-primary);
+}
+
+/* ─── Team Info Clickable (on ScoreCards) ─── */
+
+.team-info-clickable {
+    cursor: pointer;
+    border-radius: 6px;
+    transition: background 0.15s ease;
+}
+
+.team-info-clickable:hover {
+    background: rgba(255, 255, 255, 0.07);
+}
+
+/* ─── Team Header Clickable (in GameSummary) ─── */
+
+.team-header-clickable {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    border-radius: 8px;
+    padding: 6px 8px;
+    margin: -6px -8px;
+    transition: background 0.15s ease;
+}
+
+.team-header-clickable:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+/* ─── Team Page ─── */
+
+.team-page-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 16px;
+}
+
+.team-page-header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 24px 0;
+}
+
+.team-page-logo {
+    width: 80px;
+    height: 80px;
+    flex-shrink: 0;
+}
+
+.team-page-logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.team-page-info h1 {
+    font-size: 1.6rem;
+    font-weight: 800;
+    margin: 0;
+    line-height: 1.2;
+}
+
+.team-page-record {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+
+.team-page-standing {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+/* ─── Roster Table ─── */
+
+.roster-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+}
+
+.roster-table thead th {
+    text-align: center;
+    padding: 8px 10px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 0.04em;
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.roster-table tbody tr {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    transition: background 0.12s ease;
+}
+
+.roster-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.roster-table tbody td {
+    padding: 8px 10px;
+    text-align: center;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+/* ─── Schedule List ─── */
+
+.schedule-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.schedule-row {
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    gap: 12px;
+    transition: background 0.12s ease;
+}
+
+.schedule-row:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.schedule-date {
+    width: 55px;
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.schedule-matchup {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.schedule-home-away {
+    width: 20px;
+    text-align: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.schedule-opp-logo {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
+.schedule-opp-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.schedule-result {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.schedule-wl {
+    font-size: 0.75rem;
+    font-weight: 800;
+    width: 18px;
+    text-align: center;
+    border-radius: 3px;
+    padding: 1px 0;
+}
+
+.schedule-wl.win {
+    color: #4ade80;
+}
+
+.schedule-wl.loss {
+    color: #f87171;
+}
+
+.schedule-score {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.schedule-status {
+    font-size: 0.75rem;
+    color: var(--text-muted);
 }

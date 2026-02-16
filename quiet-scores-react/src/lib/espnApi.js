@@ -586,12 +586,12 @@ async function fetchTeamConferences(sportKey, { signal } = {}) {
 
 // Standings API endpoints
 const ESPN_STANDINGS_APIS = {
-  nfl: 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/standings',
-  nba: 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/standings',
-  mlb: 'https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/standings',
-  nhl: 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/standings',
-  'college-football': 'https://site.api.espn.com/apis/site/v2/sports/football/college-football/standings',
-  'college-basketball': 'https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/standings',
+  nfl: 'https://site.api.espn.com/apis/v2/sports/football/nfl/standings',
+  nba: 'https://site.api.espn.com/apis/v2/sports/basketball/nba/standings',
+  mlb: 'https://site.api.espn.com/apis/v2/sports/baseball/mlb/standings',
+  nhl: 'https://site.api.espn.com/apis/v2/sports/hockey/nhl/standings',
+  'college-football': 'https://site.api.espn.com/apis/v2/sports/football/college-football/standings',
+  'college-basketball': 'https://site.api.espn.com/apis/v2/sports/basketball/mens-college-basketball/standings',
 }
 
 // Cache for standings data
@@ -807,5 +807,54 @@ function filterStandingsByTeams(standingsData, teamInfo) {
   return null
 }
 
-export { ESPN_APIS, ESPN_SUMMARY_APIS, fetchAllScoreboards, fetchSportScoreboard, fetchGameSummary, fetchTeamConferences, fetchStandings, filterStandingsByTeams }
+// Sport key to ESPN path segment mapping
+const SPORT_PATHS = {
+  nfl: 'football/nfl',
+  nba: 'basketball/nba',
+  mlb: 'baseball/mlb',
+  nhl: 'hockey/nhl',
+  'college-football': 'football/college-football',
+  'college-basketball': 'basketball/mens-college-basketball',
+}
+
+async function fetchTeamInfo(sportKey, teamId, { signal } = {}) {
+  const path = SPORT_PATHS[sportKey]
+  if (!path) return null
+  try {
+    const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${path}/teams/${teamId}`, { signal })
+    if (!res.ok) return null
+    return await res.json()
+  } catch (err) {
+    if (err.name !== 'AbortError') console.warn('fetchTeamInfo error:', err)
+    return null
+  }
+}
+
+async function fetchTeamRoster(sportKey, teamId, { signal } = {}) {
+  const path = SPORT_PATHS[sportKey]
+  if (!path) return null
+  try {
+    const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${path}/teams/${teamId}/roster`, { signal })
+    if (!res.ok) return null
+    return await res.json()
+  } catch (err) {
+    if (err.name !== 'AbortError') console.warn('fetchTeamRoster error:', err)
+    return null
+  }
+}
+
+async function fetchTeamSchedule(sportKey, teamId, { signal } = {}) {
+  const path = SPORT_PATHS[sportKey]
+  if (!path) return null
+  try {
+    const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${path}/teams/${teamId}/schedule`, { signal })
+    if (!res.ok) return null
+    return await res.json()
+  } catch (err) {
+    if (err.name !== 'AbortError') console.warn('fetchTeamSchedule error:', err)
+    return null
+  }
+}
+
+export { ESPN_APIS, ESPN_SUMMARY_APIS, fetchAllScoreboards, fetchSportScoreboard, fetchGameSummary, fetchTeamConferences, fetchStandings, filterStandingsByTeams, fetchTeamInfo, fetchTeamRoster, fetchTeamSchedule }
 
