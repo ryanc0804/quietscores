@@ -1,8 +1,8 @@
-# 🏈 Quiet Scores - Live ESPN Data (React)
+Quiet Scores - Live ESPN Data (React)
 
 A modern, responsive React application that displays **real-time live sports scores** from ESPN's official APIs in a clean and organized layout.
 
-## ✨ Features
+Features
 
 - **Real Live Scores**: Live data from ESPN APIs for NFL, NBA, MLB, NHL, College Football, and College Basketball
 - **Live Score Display**: Shows current game scores with live indicators and real-time updates
@@ -15,14 +15,14 @@ A modern, responsive React application that displays **real-time live sports sco
 - **Auto-refresh**: Automatically updates scores every 5 seconds for live games, 60 seconds otherwise
 - **Modern UI**: Beautiful dark theme with clean card-based layout
 
-## 🚀 Tech Stack
+Tech Stack
 
 - **React 19** - Modern React with hooks
 - **Vite** - Fast build tool and dev server
 - **ESPN APIs** - Real-time sports data
 - **Vercel** - Hosting and deployment
 
-## 🏃‍♂️ Local Development
+Local Development
 
 1. **Install dependencies**:
    ```bash
@@ -40,11 +40,11 @@ A modern, responsive React application that displays **real-time live sports sco
    npm run build
    ```
 
-## 📦 Deployment
+Deployment
 
 This project is configured for Vercel deployment. The `vercel.json` file in the root directory configures Vercel to build from the `quiet-scores-react` subdirectory.
 
-## 🎯 Features in Detail
+Features in Detail
 
 ### Live Game Features
 - **Possession Indicators**: Blue border accent shows which team has possession (football) or is at bat (baseball)
@@ -68,7 +68,7 @@ This project is configured for Vercel deployment. The `vercel.json` file in the 
 - **Over/Under**: Total points/goals displayed between teams
 - **Moneylines**: Moneyline odds for each team
 
-## 🌐 ESPN APIs Used
+ESPN APIs Used
 
 - NFL Scoreboard
 - NBA Scoreboard
@@ -77,14 +77,6 @@ This project is configured for Vercel deployment. The `vercel.json` file in the 
 - College Football Scoreboard
 - College Basketball Scoreboard
 - Game Summary API (for detailed game information)
-
-## 📱 Mobile Friendly
-
-The application automatically adapts to mobile devices with:
-- Responsive grid layout
-- Touch-friendly buttons
-- Optimized typography
-- Mobile-first design approach
 
 ## 🔧 Project Structure
 
@@ -103,9 +95,6 @@ quiet-scores-react/
 └── package.json        # Dependencies
 ```
 
-## 🚀 Deployment
-
-Deployed on Vercel: [nfl-website-six.vercel.app](https://nfl-website-six.vercel.app)
 
 ## 📝 License
 
