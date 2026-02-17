@@ -6,7 +6,7 @@ const ESPN_APIS = {
   'college-football':
     'https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard',
   'college-basketball':
-    'https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard',
+    'https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?limit=200&groups=50',
 }
 
 const ESPN_SUMMARY_APIS = {
@@ -432,7 +432,8 @@ async function fetchSportScoreboard(sportKey, date, { signal } = {}) {
   const endpoint = ESPN_APIS[sportKey]
   if (!endpoint) return []
 
-  const url = `${endpoint}?dates=${formatDateParam(date)}`
+  const separator = endpoint.includes('?') ? '&' : '?'
+  const url = `${endpoint}${separator}dates=${formatDateParam(date)}`
   const response = await fetch(url, { signal })
 
   if (!response.ok) {
