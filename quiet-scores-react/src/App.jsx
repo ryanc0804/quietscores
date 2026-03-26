@@ -243,6 +243,19 @@ function getInningDisplay(game) {
   } else if (game.topBottom === 'end') {
     inningState = 'End'
   }
+
+  if (!inningState) {
+    const timeText = (game.time || '').toLowerCase()
+    if (timeText.startsWith('top')) {
+      inningState = 'Top'
+    } else if (timeText.startsWith('bot') || timeText.startsWith('bottom')) {
+      inningState = 'Bot'
+    } else if (timeText.startsWith('mid')) {
+      inningState = 'Mid'
+    } else if (timeText.startsWith('end')) {
+      inningState = 'End'
+    }
+  }
   
   return inningState ? `${inningState} ${inningText}` : ''
 }
@@ -251,7 +264,7 @@ function getStatusBadge(game) {
   const timeText = game.time || ''
   
   // For MLB live games, show inning display
-  if (game.sport === 'mlb' && game.status === 'live' && game.inningNumber) {
+  if (game.sport === 'mlb' && (game.status === 'live' || game.status === 'halftime') && game.inningNumber) {
     const inningDisplay = getInningDisplay(game)
     if (inningDisplay) {
       return { className: 'inning-display live', text: inningDisplay }
@@ -262,6 +275,9 @@ function getStatusBadge(game) {
     case 'live':
       return { className: 'inning-display live', text: timeText || 'Live' }
     case 'halftime':
+      if (game.sport === 'mlb') {
+        return { className: 'inning-display live', text: timeText || 'Live' }
+      }
       return { className: 'inning-display halftime', text: 'HALFTIME' }
     case 'final':
       if (game.sport === 'mlb') {
@@ -279,7 +295,9 @@ function getStatusBadge(game) {
 }
 
 function BasesVisual({ bases }) {
-  if (!bases || bases === 'empty') return null
+  if (!bases) {
+    bases = 'empty'
+  }
   
   const secondBase = bases === '2nd' || bases === '1st & 2nd' || bases === '2nd & 3rd' || bases === 'loaded'
   const firstBase = bases === '1st' || bases === '1st & 2nd' || bases === '1st & 3rd' || bases === 'loaded'

@@ -2,11 +2,11 @@
 
 /* CSS Variables for consistent dark mode */
 :root {
-    --bg-primary: #121218;
-    --bg-secondary: #1c1c24;
-    --bg-tertiary: #2a2a35;
-    --bg-card: #16161e;
-    --bg-card-secondary: #1a1a22;
+    --bg-primary: #222222;
+    --bg-secondary: #2c2c2c;
+    --bg-tertiary: #383838;
+    --bg-card: #262626;
+    --bg-card-secondary: #2d2d2d;
     --border-primary: #2e2e3a;
     --border-secondary: #3a3a48;
     --text-primary: #e8e8ed;
@@ -64,7 +64,7 @@ body.pwa-mode {
 }
 
 .container {
-    max-width: 1600px;
+    max-width: 1900px;
     margin: 0 auto;
     padding: 20px 0px;
 }
@@ -75,7 +75,7 @@ body.pwa-mode {
     top: 0;
     left: 0;
     width: 100vw;
-    background: rgba(18, 18, 24, 0.92);
+    background: rgba(34, 34, 34, 0.92);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border-bottom: 1px solid var(--border-primary);
@@ -203,10 +203,13 @@ body.pwa-mode {
 }
 
 .week-display {
+    display: block;
+    width: fit-content;
     text-align: center;
     transition: all 0.2s ease;
     padding: 4px 12px;
     border-radius: 8px;
+    margin: 0 auto;
 }
 
 .week-display:hover {
@@ -454,7 +457,7 @@ body.pwa-mode {
 /* Scores container with dark theme */
 .scores-container {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
     gap: 20px;
     margin-top: 30px;
     padding: 10px;
@@ -1278,6 +1281,7 @@ body.pwa-mode {
     flex-direction: column;
     gap: 12px;
     flex: 2;
+    min-width: 0;
 }
 
 /* Mobile-first approach - apply mobile styles by default */
@@ -1528,6 +1532,16 @@ body.pwa-mode {
     min-width: 60px;
     max-width: 80px;
     flex-shrink: 0;
+}
+
+/* Keep live MLB bases/count visible by reserving right-column width */
+.score-card:has(.mlb-game-state.live-game) .teams {
+    max-width: calc(100% - 90px);
+}
+
+.score-card:has(.mlb-game-state.live-game) .mlb-game-state {
+    flex: 0 0 80px;
+    min-width: 80px;
 }
 
 /* NFL field visualization */
@@ -5425,7 +5439,17 @@ body.pwa-mode {
 }
 
 .team-info-clickable:hover {
+    background: transparent;
+}
+
+/* Use one hover box that spans name + score */
+.team:has(.team-info-clickable:hover) {
     background: rgba(255, 255, 255, 0.07);
+}
+
+/* Keep score slightly closer to team info */
+.team-score {
+    margin-left: 8px;
 }
 
 /* ─── Team Header Clickable (in GameSummary) ─── */

@@ -31,7 +31,7 @@ function stripTime(date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate())
 }
 
-function normalizeStatus(status, detail, shortDetail) {
+function normalizeStatus(status, detail, shortDetail, sportKey) {
   const detailLower = (detail || '').toLowerCase()
   const shortLower = (shortDetail || '').toLowerCase()
   const combined = detailLower || shortLower
@@ -52,6 +52,9 @@ function normalizeStatus(status, detail, shortDetail) {
       return 'final'
     case 'in':
       if (combined.includes('end')) {
+        if (sportKey === 'mlb') {
+          return 'live'
+        }
         return 'halftime'
       }
       return 'live'
@@ -158,6 +161,7 @@ function transformEvent(event, sportKey) {
     statusType.state,
     statusType.detail,
     statusType.shortDetail,
+    sportKey,
   )
 
   const timeDetail =
@@ -255,13 +259,27 @@ function transformEvent(event, sportKey) {
     if (situation?.topOfInning !== undefined && situation.topOfInning !== null) {
       topBottom = situation.topOfInning ? 'top' : 'bot'
     } else if (situation?.inningHalf !== undefined && situation.inningHalf !== null) {
-      if (situation.inningHalf === 1 || situation.inningHalf === 'top') {
+      const inningHalf = String(situation.inningHalf).toLowerCase()
+      if (situation.inningHalf === 1 || inningHalf === 'top') {
         topBottom = 'top'
-      } else if (situation.inningHalf === 2 || situation.inningHalf === 'bottom') {
+      } else if (situation.inningHalf === 2 || inningHalf === 'bottom' || inningHalf === 'bot') {
         topBottom = 'bot'
+      } else if (inningHalf.includes('mid')) {
+        topBottom = 'mid'
+      } else if (inningHalf.includes('end')) {
+        topBottom = 'end'
       }
     } else if (situation?.inningHalf) {
-      topBottom = situation.inningHalf === 'top' ? 'top' : 'bot'
+      const inningHalf = String(situation.inningHalf).toLowerCase()
+      if (inningHalf === 'top') {
+        topBottom = 'top'
+      } else if (inningHalf === 'bottom' || inningHalf === 'bot') {
+        topBottom = 'bot'
+      } else if (inningHalf.includes('mid')) {
+        topBottom = 'mid'
+      } else if (inningHalf.includes('end')) {
+        topBottom = 'end'
+      }
     }
 
     // Extract count (balls, strikes, outs)
