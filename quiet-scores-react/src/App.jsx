@@ -2,12 +2,15 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useScores } from './hooks/useScores'
 import { fetchGameSummary, fetchStandings, filterStandingsByTeams, fetchTeamInfo, fetchTeamRoster, fetchTeamSchedule } from './lib/espnApi'
 
+const SOCCER_SPORT_KEYS = ['worldcup', 'mls', 'epl', 'ucl', 'laliga', 'bundesliga', 'seriea', 'ligue1']
+
 const SPORT_BUTTONS = [
   { label: 'All Sports', value: 'all' },
   { label: 'NFL', value: 'nfl' },
   { label: 'NBA', value: 'nba' },
   { label: 'MLB', value: 'mlb' },
   { label: 'NHL', value: 'nhl' },
+  { label: 'Soccer', value: 'soccer' },
   { label: 'CFB', value: 'college-football' },
   { label: 'CBB', value: 'college-basketball' },
 ]
@@ -90,6 +93,22 @@ function getSportDisplayName(sport) {
       return 'CFB'
     case 'college-basketball':
       return 'CBB'
+    case 'worldcup':
+      return 'World Cup'
+    case 'mls':
+      return 'MLS'
+    case 'epl':
+      return 'EPL'
+    case 'ucl':
+      return 'UCL'
+    case 'laliga':
+      return 'La Liga'
+    case 'bundesliga':
+      return 'Bundesliga'
+    case 'seriea':
+      return 'Serie A'
+    case 'ligue1':
+      return 'Ligue 1'
     default:
       return sport?.toUpperCase() ?? 'SPORT'
   }
@@ -366,7 +385,7 @@ function TeamLogo({ name, logoUrl, fallbackText }) {
         src={logoUrl}
         alt={`${name} logo`}
         onError={() => setFailed(true)}
-        style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'contain' }}
+        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
       />
       <div className="fallback-logo" style={{ display: 'none' }}>
         {fallback}
@@ -1666,41 +1685,165 @@ function GameSummary({ game, onBack, onOpenTeam }) {
   )
 
   // Reusable: Box Score tab content
-  const renderBoxScoreTab = () => (
-    <div className="full-boxscore-container">
-      {boxscore?.players?.map((teamData, tIdx) => (
-        <div key={tIdx} className="team-boxscore">
-          <h4 style={{ color: tIdx === 0 ? awayTeamColor : homeTeamColor }}>{(tIdx === 0 ? game.awayTeam : game.homeTeam).toUpperCase()}</h4>
-          {teamData.statistics?.map((statCat, sIdx) => (
-            <div key={sIdx} className="stat-category-block">
-              <h5 className="stat-category-title">{statCat.name.toUpperCase()}</h5>
-              <div className="table-responsive">
-                <table className="full-boxscore-table">
-                  <thead>
-                    <tr>
-                      <th>PLAYER</th>
-                      {statCat.labels?.map((label, lIdx) => <th key={lIdx}>{label}</th>)}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {statCat.athletes?.map((player, pIdx) => (
-                      <tr key={pIdx}>
-                        <td className="player-cell">
-                          <div className="player-name">{player.athlete?.displayName}</div>
-                          <div className="player-pos">{player.athlete?.position?.abbreviation}</div>
-                        </td>
-                        {player.stats?.map((stat, stIdx) => <td key={stIdx}>{stat}</td>)}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+  const renderBoxScoreTab = () => {
+    const isSoccer = SOCCER_SPORT_KEYS.includes(game.sport)
+
+    if (isSoccer) {
+      const teams = summaryData?.boxscore?.teams ?? []
+      const awayTeamData = teams.find(t => t.homeAway === 'away') ?? teams[0]
+      const homeTeamData = teams.find(t => t.homeAway === 'home') ?? teams[1]
+
+      const awayStats = Object.fromEntries(
+        (awayTeamData?.statistics ?? []).map(s => [s.name, s.displayValue])
+      )
+      const homeStats = Object.fromEntries(
+        (homeTeamData?.statistics ?? []).map(s => [s.name, s.displayValue])
+      )
+
+      const SOCCER_STATS = [
+        { key: 'possessionPct', label: 'Possession %' },
+        { key: 'totalShots', label: 'Shots' },
+        { key: 'shotsOnTarget', label: 'On Target' },
+        { key: 'wonCorners', label: 'Corners' },
+        { key: 'foulsCommitted', label: 'Fouls' },
+        { key: 'yellowCards', label: 'Yellow Cards' },
+        { key: 'redCards', label: 'Red Cards' },
+        { key: 'offsides', label: 'Offsides' },
+        { key: 'saves', label: 'Saves' },
+      ]
+
+      const rosters = summaryData?.rosters ?? []
+      const PLAYER_COLS = [
+        { key: 'G', label: 'G' },
+        { key: 'A', label: 'A' },
+        { key: 'SHOT', label: 'SH' },
+        { key: 'SOG', label: 'SOG' },
+        { key: 'YC', label: 'YC' },
+        { key: 'RC', label: 'RC' },
+        { key: 'SV', label: 'SV' },
+      ]
+
+      const renderLineup = (rosterData) => {
+        if (!rosterData) return null
+        const players = rosterData.roster ?? []
+        const starters = players.filter(p => p.starter)
+        const subs = players.filter(p => !p.starter)
+        const teamName = rosterData.team?.displayName ?? ''
+
+        const renderRow = (p, idx) => {
+          const statMap = Object.fromEntries((p.stats ?? []).map(s => [s.abbreviation, s.displayValue]))
+          const isGK = p.position?.abbreviation === 'G'
+          return (
+            <tr key={idx} className={p.subbedOut ? 'player-subbed-out' : ''}>
+              <td className="soccer-player-cell">
+                <span className="soccer-jersey">#{p.jersey}</span>
+                <span className="soccer-player-name">{p.athlete?.shortName ?? p.athlete?.displayName}</span>
+                <span className="soccer-player-pos">{p.position?.abbreviation}</span>
+              </td>
+              {PLAYER_COLS.map(col => {
+                if (col.key === 'SV' && !isGK) return <td key={col.key} className="soccer-player-stat muted">-</td>
+                const val = statMap[col.key]
+                const highlight = val && val !== '0' && col.key !== 'SV'
+                return (
+                  <td key={col.key} className={`soccer-player-stat ${highlight ? 'highlight' : ''}`}>
+                    {val ?? '-'}
+                  </td>
+                )
+              })}
+            </tr>
+          )
+        }
+
+        return (
+          <div className="soccer-lineup">
+            <div className="soccer-lineup-header">
+              <span>{teamName}</span>
+              {rosterData.formation && <span className="soccer-formation">{rosterData.formation}</span>}
             </div>
+            <div className="table-responsive">
+              <table className="soccer-player-table">
+                <thead>
+                  <tr>
+                    <th>PLAYER</th>
+                    {PLAYER_COLS.map(c => <th key={c.key}>{c.label}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {starters.map(renderRow)}
+                  {subs.length > 0 && (
+                    <tr className="sub-divider-row">
+                      <td colSpan={PLAYER_COLS.length + 1}>SUBSTITUTES</td>
+                    </tr>
+                  )}
+                  {subs.map(renderRow)}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )
+      }
+
+      const awayRoster = rosters.find(r => r.homeAway === 'away') ?? rosters[0]
+      const homeRoster = rosters.find(r => r.homeAway === 'home') ?? rosters[1]
+
+      return (
+        <div className="soccer-boxscore">
+          <div className="soccer-stats-header">
+            <span>{game.awayAbbreviation}</span>
+            <span></span>
+            <span>{game.homeAbbreviation}</span>
+          </div>
+          {SOCCER_STATS.map(({ key, label }) => (
+            (awayStats[key] !== undefined || homeStats[key] !== undefined) && (
+              <div key={key} className="soccer-stat-row">
+                <span className="soccer-stat-value">{awayStats[key] ?? '-'}</span>
+                <span className="soccer-stat-label">{label}</span>
+                <span className="soccer-stat-value">{homeStats[key] ?? '-'}</span>
+              </div>
+            )
           ))}
+          {renderLineup(awayRoster)}
+          {renderLineup(homeRoster)}
         </div>
-      ))}
-    </div>
-  )
+      )
+    }
+
+    return (
+      <div className="full-boxscore-container">
+        {boxscore?.players?.map((teamData, tIdx) => (
+          <div key={tIdx} className="team-boxscore">
+            <h4 style={{ color: tIdx === 0 ? awayTeamColor : homeTeamColor }}>{(tIdx === 0 ? game.awayTeam : game.homeTeam)?.toUpperCase()}</h4>
+            {teamData.statistics?.map((statCat, sIdx) => (
+              <div key={sIdx} className="stat-category-block">
+                <h5 className="stat-category-title">{statCat.name?.toUpperCase()}</h5>
+                <div className="table-responsive">
+                  <table className="full-boxscore-table">
+                    <thead>
+                      <tr>
+                        <th>PLAYER</th>
+                        {statCat.labels?.map((label, lIdx) => <th key={lIdx}>{label}</th>)}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {statCat.athletes?.map((player, pIdx) => (
+                        <tr key={pIdx}>
+                          <td className="player-cell">
+                            <div className="player-name">{player.athlete?.displayName}</div>
+                            <div className="player-pos">{player.athlete?.position?.abbreviation}</div>
+                          </td>
+                          {player.stats?.map((stat, stIdx) => <td key={stIdx}>{stat}</td>)}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    )
+  }
 
   // Reusable: Win Probability section
   const renderWinProbability = () => {
@@ -1931,198 +2074,17 @@ function GameSummary({ game, onBack, onOpenTeam }) {
   )
 
   // ─── LIVE LAYOUT (in-progress games) ───
-  const renderLiveLayout = () => {
-    const isFootball = game.sport === 'nfl' || game.sport === 'college-football'
-    const liveTabs = ['gamecast', 'boxscore', 'play-by-play', 'team-stats']
+  const renderLiveLayout = () => (
+    <div className="game-summary-simple">
+      {renderBoxScoreTab()}
+    </div>
+  )
 
-    return (
-      <>
-        <div className="summary-tabs">
-          {liveTabs.map(tab => (
-            <button
-              key={tab}
-              className={`summary-tab ${activeTab === tab ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab)}
-            >
-              {tab === 'play-by-play' ? 'Play-by-Play' : tab === 'team-stats' ? 'Team Stats' : tab === 'boxscore' ? 'Box Score' : 'Gamecast'}
-            </button>
-          ))}
-        </div>
-
-        <div className="game-summary-grid">
-          {/* Left Sidebar */}
-          <aside className="summary-sidebar-left">
-            {renderLeaders('GAME LEADERS')}
-            {renderTeamStatsSidebar()}
-          </aside>
-
-          {/* Middle */}
-          <main className="summary-main-content">
-            {activeTab === 'gamecast' && (
-              <>
-                {/* Current Drive + Situation (football only) */}
-                {isFootball && (
-                  <div className="game-snapshot-container">
-                    <div className="snapshot-header-row">
-                      {currentDrive && (
-                        <div className="current-drive-section">
-                          <span className="current-drive-label">CURRENT DRIVE</span>
-                          <span className="current-drive-info">
-                            {Array.isArray(currentDrive.plays) ? currentDrive.plays.length : (currentDrive.plays || 0)} plays, {currentDrive.yards || 0} yards
-                          </span>
-                        </div>
-                      )}
-                      <div className="snapshot-situation">
-                        <div className="situation-item">
-                          <span className="snapshot-label">Down:</span>
-                          <span className="snapshot-value">{downDistanceText}</span>
-                        </div>
-                        <div className="situation-item">
-                          <span className="snapshot-label">Ball On:</span>
-                          <span className="snapshot-value">{yardLineText}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="football-field-wrapper" style={{ marginTop: '20px' }}>
-                      <div className="football-field" style={{ height: '180px' }}>
-                        <div className="field-arc"></div>
-                        <div className="field-endzone away-endzone" style={{ backgroundColor: `#${awayTeam?.team?.color || '333'}` }}>
-                          <span className="endzone-text">{game.awayAbbreviation}</span>
-                        </div>
-                        <div className="field-grid">
-                          <div className="yard-line-container">
-                            {[10, 20, 30, 40, 50, 60, 70, 80, 90].map(line => (
-                              <div key={line} className="field-yard-line" style={{ left: `${line}%` }}>
-                                <span className="yard-num">{line > 50 ? 100 - line : line}</span>
-                              </div>
-                            ))}
-                          </div>
-                          {normalizedYardLine !== null && (
-                            <div className="ball-marker-container" style={{ left: `${normalizedYardLine}%` }}>
-                              <div className="ball-marker-icon">
-                                <img src={isAwayPossession ? awayTeamLogo : isHomePossession ? homeTeamLogo : awayTeamLogo} alt="" className="marker-logo" />
-                                <div className="marker-pointer" />
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                        <div className="field-endzone home-endzone" style={{ backgroundColor: `#${homeTeam?.team?.color || '444'}` }}>
-                          <span className="endzone-text">{game.homeAbbreviation}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Mini Play-by-Play */}
-                <div className="news-section" style={{ padding: 0 }}>
-                  <div className="section-header-row" style={{ padding: '15px 20px', marginBottom: 0 }}>
-                    <h3 style={{ fontSize: '0.85rem', fontWeight: '800' }}>PLAY-BY-PLAY</h3>
-                    <div className="play-toggle-container">
-                      <button className={`play-toggle-btn ${playFilter === 'scoring' ? 'active' : ''}`} onClick={() => setPlayFilter('scoring')}>Scoring</button>
-                      <button className={`play-toggle-btn ${playFilter === 'all' ? 'active' : ''}`} onClick={() => setPlayFilter('all')}>All</button>
-                    </div>
-                  </div>
-                  <div className="play-by-play-list" style={{ border: 'none', background: 'transparent' }}>
-                    {plays.filter(p => playFilter === 'all' || p.scoringPlay).slice(-5).reverse().map((play, idx) => (
-                      <div key={idx} className="play-card" style={{ padding: '15px 20px', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                        <div className="play-card-left">
-                          <div className="play-team-logo" style={{ width: '24px', height: '24px' }}>
-                            <img src={String(play.team?.id) === String(game.awayTeamId) ? awayTeamLogo : homeTeamLogo} alt="" />
-                          </div>
-                          <div className="play-content">
-                            <div className="play-type-row">
-                              <span className="play-type-text" style={{ fontSize: '0.75rem', fontWeight: '800' }}>{play.type?.text}</span>
-                              <span className="play-time-text" style={{ fontSize: '0.7rem' }}>{play.clock?.displayValue}</span>
-                            </div>
-                            <div className="play-description" style={{ fontSize: '0.85rem' }}>{play.text}</div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    <div style={{ textAlign: 'center', padding: '15px' }}>
-                      <button className="summary-tab" style={{ fontSize: '0.75rem' }} onClick={() => setActiveTab('play-by-play')}>Full Play-by-Play</button>
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {activeTab === 'boxscore' && renderBoxScoreTab()}
-
-            {activeTab === 'play-by-play' && (
-              <div className="play-by-play-list" style={{ border: 'none', background: 'transparent' }}>
-                {plays.filter(p => playFilter === 'all' || p.scoringPlay).reverse().map((play, idx) => (
-                  <div key={idx} className="play-card">
-                    <div className="play-card-left">
-                      <div className="play-team-logo"><img src={String(play.team?.id) === String(game.awayTeamId) ? awayTeamLogo : homeTeamLogo} alt="" /></div>
-                      <div className="play-content">
-                        <div className="play-type-row">
-                          <span className="play-type-text">{play.type?.text}</span>
-                          <span className="play-time-text">{play.clock?.displayValue}</span>
-                        </div>
-                        <div className="play-description">{play.text}</div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {activeTab === 'team-stats' && renderTeamStatsTab()}
-          </main>
-
-          {/* Right Sidebar */}
-          <aside className="summary-sidebar-right">
-            {renderWinProbability()}
-            {renderStandings()}
-          </aside>
-        </div>
-      </>
-    )
-  }
-
-  // ─── FINAL LAYOUT (completed games) ───
-  const renderFinalLayout = () => {
-    const finalTabs = ['boxscore', 'team-stats']
-
-    return (
-      <>
-        <div className="summary-tabs">
-          {finalTabs.map(tab => (
-            <button
-              key={tab}
-              className={`summary-tab ${activeTab === tab ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab)}
-            >
-              {tab === 'team-stats' ? 'Team Stats' : 'Box Score'}
-            </button>
-          ))}
-        </div>
-
-        <div className="game-summary-grid">
-          {/* Left Sidebar */}
-          <aside className="summary-sidebar-left">
-            {renderLeaders('GAME LEADERS')}
-            {renderTeamStatsSidebar()}
-          </aside>
-
-          {/* Middle */}
-          <main className="summary-main-content">
-            {activeTab === 'boxscore' && renderBoxScoreTab()}
-            {activeTab === 'team-stats' && renderTeamStatsTab()}
-          </main>
-
-          {/* Right Sidebar */}
-          <aside className="summary-sidebar-right">
-            {renderWinProbability()}
-            {renderStandings()}
-          </aside>
-        </div>
-      </>
-    )
-  }
+  const renderFinalLayout = () => (
+    <div className="game-summary-simple">
+      {renderBoxScoreTab()}
+    </div>
+  )
 
   return (
     <div className="game-summary-container">
@@ -2131,7 +2093,7 @@ function GameSummary({ game, onBack, onOpenTeam }) {
 
       {summaryData && (
         <>
-          {renderHeader()}
+          {gameState === 'preview' && renderHeader()}
           {gameState === 'preview' && renderPreviewLayout()}
           {gameState === 'live' && renderLiveLayout()}
           {gameState === 'final' && renderFinalLayout()}
@@ -2532,12 +2494,14 @@ function App() {
     let baseScores =
       selectedSport === 'all'
         ? scores
-        : scores.filter((game) => game.sport === selectedSport)
-    
+        : selectedSport === 'soccer'
+          ? scores.filter((game) => SOCCER_SPORT_KEYS.includes(game.sport))
+          : scores.filter((game) => game.sport === selectedSport)
+
     if (showLiveOnly) {
       baseScores = baseScores.filter(game => game.status === 'live' || game.status === 'halftime')
     }
-    
+
     const copy = [...baseScores]
     copy.sort(compareGames)
     return copy
@@ -2545,9 +2509,12 @@ function App() {
 
 
   const liveCount = useMemo(() => {
-    const sportScores = selectedSport === 'all'
-      ? scores
-      : scores.filter((game) => game.sport === selectedSport)
+    const sportScores =
+      selectedSport === 'all'
+        ? scores
+        : selectedSport === 'soccer'
+          ? scores.filter((game) => SOCCER_SPORT_KEYS.includes(game.sport))
+          : scores.filter((game) => game.sport === selectedSport)
     return sportScores.filter((game) => game.status === 'live' || game.status === 'halftime').length
   }, [scores, selectedSport])
 

@@ -7,6 +7,14 @@ const ESPN_APIS = {
     'https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard',
   'college-basketball':
     'https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?limit=200&groups=50',
+  worldcup: 'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard',
+  mls: 'https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard',
+  epl: 'https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/scoreboard',
+  ucl: 'https://site.api.espn.com/apis/site/v2/sports/soccer/uefa.champions/scoreboard',
+  laliga: 'https://site.api.espn.com/apis/site/v2/sports/soccer/esp.1/scoreboard',
+  bundesliga: 'https://site.api.espn.com/apis/site/v2/sports/soccer/ger.1/scoreboard',
+  seriea: 'https://site.api.espn.com/apis/site/v2/sports/soccer/ita.1/scoreboard',
+  ligue1: 'https://site.api.espn.com/apis/site/v2/sports/soccer/fra.1/scoreboard',
 }
 
 const ESPN_SUMMARY_APIS = {
@@ -18,6 +26,14 @@ const ESPN_SUMMARY_APIS = {
     'https://site.api.espn.com/apis/site/v2/sports/football/college-football/summary',
   'college-basketball':
     'https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/summary',
+  worldcup: 'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/summary',
+  mls: 'https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/summary',
+  epl: 'https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary',
+  ucl: 'https://site.api.espn.com/apis/site/v2/sports/soccer/uefa.champions/summary',
+  laliga: 'https://site.api.espn.com/apis/site/v2/sports/soccer/esp.1/summary',
+  bundesliga: 'https://site.api.espn.com/apis/site/v2/sports/soccer/ger.1/summary',
+  seriea: 'https://site.api.espn.com/apis/site/v2/sports/soccer/ita.1/summary',
+  ligue1: 'https://site.api.espn.com/apis/site/v2/sports/soccer/fra.1/summary',
 }
 
 function formatDateParam(date) {
@@ -84,40 +100,34 @@ function extractRecord(competitor) {
   return (total ?? records[0])?.summary ?? null
 }
 
+function toDarkLogoUrl(url) {
+  if (!url) return url
+  // ESPN hosts dark-theme (light-colored) logo variants at /500-dark/ instead of /500/
+  return url.includes('/500-dark/') ? url : url.replace('/500/', '/500-dark/')
+}
+
 function pickTeamLogo(team) {
   if (!team) return null
+
   if (Array.isArray(team.logos) && team.logos.length > 0) {
-    // Prefer alternate logos (often lighter versions) if available
-    // ESPN sometimes provides multiple variants - look for alternates first
-    const alternates = team.logos.filter((entry) => 
-      Boolean(entry.href) && (
-        entry.href.toLowerCase().includes('alternate') ||
-        entry.href.toLowerCase().includes('alt') ||
-        entry.href.toLowerCase().includes('light') ||
-        entry.href.toLowerCase().includes('white')
-      )
+    // Prefer dark scoreboard variant (light logo, right size for score cards)
+    const darkScoreboard = team.logos.find(l =>
+      l.href && l.rel?.includes('dark') && l.rel?.includes('scoreboard')
     )
-    
-    // If alternates found, use the first one
-    if (alternates.length > 0 && alternates[0]?.href) {
-      return alternates[0].href
-    }
-    
-    // Otherwise, try to find a logo that's not the primary dark one
-    // Look for logos that might be lighter variants
-    const nonPrimary = team.logos.find((entry) => 
-      Boolean(entry.href) && 
-      !entry.href.toLowerCase().includes('dark') &&
-      !entry.href.toLowerCase().includes('black')
-    ) ?? team.logos.find((entry) => Boolean(entry.href))
-    
-    if (nonPrimary?.href) return nonPrimary.href
-    
-    // Fallback to first available logo
-    const primary = team.logos.find((entry) => Boolean(entry.href)) ?? team.logos[0]
-    if (primary?.href) return primary.href
+    if (darkScoreboard?.href) return darkScoreboard.href
+
+    // Then any dark variant
+    const dark = team.logos.find(l => l.href && l.rel?.includes('dark'))
+    if (dark?.href) return dark.href
+
+    // Fall back to first available, then convert URL to dark variant
+    const first = team.logos.find(l => l.href)
+    if (first?.href) return toDarkLogoUrl(first.href)
   }
-  if (team.logo) return team.logo
+
+  // Scoreboard endpoint provides a single logo URL — convert to dark variant
+  if (team.logo) return toDarkLogoUrl(team.logo)
+
   return null
 }
 
@@ -404,7 +414,7 @@ function transformEvent(event, sportKey) {
     const odds = competition.odds[0]
 
     // Extract point spread
-    if (odds.pointSpread) {
+    if (odds && odds.pointSpread) {
       const pointSpread = odds.pointSpread
       if (pointSpread.away?.close?.line !== undefined) {
         spread = pointSpread.away.close.line
@@ -415,7 +425,7 @@ function transformEvent(event, sportKey) {
     }
 
     // Extract over/under (total)
-    if (odds.overUnder) {
+    if (odds && odds.overUnder) {
       const total = odds.overUnder
       if (total.close?.line !== undefined) {
         overUnder = total.close.line
@@ -423,7 +433,7 @@ function transformEvent(event, sportKey) {
     }
 
     // Extract moneyline
-    if (odds.moneyline) {
+    if (odds && odds.moneyline) {
       const moneyline = odds.moneyline
       if (moneyline.away?.close?.line !== undefined) {
         awayMoneyline = moneyline.away.close.line
@@ -611,6 +621,14 @@ const ESPN_STANDINGS_APIS = {
   nhl: 'https://site.api.espn.com/apis/v2/sports/hockey/nhl/standings',
   'college-football': 'https://site.api.espn.com/apis/v2/sports/football/college-football/standings',
   'college-basketball': 'https://site.api.espn.com/apis/v2/sports/basketball/mens-college-basketball/standings',
+  worldcup: 'https://site.api.espn.com/apis/v2/sports/soccer/fifa.world/standings',
+  mls: 'https://site.api.espn.com/apis/v2/sports/soccer/usa.1/standings',
+  epl: 'https://site.api.espn.com/apis/v2/sports/soccer/eng.1/standings',
+  ucl: 'https://site.api.espn.com/apis/v2/sports/soccer/uefa.champions/standings',
+  laliga: 'https://site.api.espn.com/apis/v2/sports/soccer/esp.1/standings',
+  bundesliga: 'https://site.api.espn.com/apis/v2/sports/soccer/ger.1/standings',
+  seriea: 'https://site.api.espn.com/apis/v2/sports/soccer/ita.1/standings',
+  ligue1: 'https://site.api.espn.com/apis/v2/sports/soccer/fra.1/standings',
 }
 
 // Cache for standings data
@@ -834,6 +852,14 @@ const SPORT_PATHS = {
   nhl: 'hockey/nhl',
   'college-football': 'football/college-football',
   'college-basketball': 'basketball/mens-college-basketball',
+  worldcup: 'soccer/fifa.world',
+  mls: 'soccer/usa.1',
+  epl: 'soccer/eng.1',
+  ucl: 'soccer/uefa.champions',
+  laliga: 'soccer/esp.1',
+  bundesliga: 'soccer/ger.1',
+  seriea: 'soccer/ita.1',
+  ligue1: 'soccer/fra.1',
 }
 
 async function fetchTeamInfo(sportKey, teamId, { signal } = {}) {

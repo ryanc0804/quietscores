@@ -2,11 +2,11 @@
 
 /* CSS Variables for consistent dark mode */
 :root {
-    --bg-primary: #222222;
-    --bg-secondary: #2c2c2c;
-    --bg-tertiary: #383838;
-    --bg-card: #262626;
-    --bg-card-secondary: #2d2d2d;
+    --bg-primary: #141414;
+    --bg-secondary: #1e1e1e;
+    --bg-tertiary: #2a2a2a;
+    --bg-card: #191919;
+    --bg-card-secondary: #1e1e1e;
     --border-primary: #2e2e3a;
     --border-secondary: #3a3a48;
     --text-primary: #e8e8ed;
@@ -75,9 +75,7 @@ body.pwa-mode {
     top: 0;
     left: 0;
     width: 100vw;
-    background: rgba(34, 34, 34, 0.92);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    background: var(--bg-primary);
     border-bottom: 1px solid var(--border-primary);
     z-index: 1000;
     display: grid;
@@ -593,8 +591,8 @@ body.pwa-mode {
     }
     
     .team-logo {
-        width: 28px;
-        height: 28px;
+        width: 40px;
+        height: 40px;
         margin-right: 6px;
     }
     
@@ -869,8 +867,8 @@ body.pwa-mode {
     }
     
     .team-logo {
-        width: 20px;
-        height: 20px;
+        width: 32px;
+        height: 32px;
         margin-right: 4px;
     }
     
@@ -1338,13 +1336,12 @@ body.pwa-mode {
 
 /* Team logo styling */
 .team-logo {
-    width: 32px;
-    height: 32px;
+    width: 48px;
+    height: 48px;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    overflow: hidden;
 }
 
 .team-logo img {
@@ -1353,6 +1350,7 @@ body.pwa-mode {
     object-fit: contain;
     max-width: 100%;
     max-height: 100%;
+
 }
 
 .team-logo .fallback-logo {
@@ -1444,14 +1442,14 @@ body.pwa-mode {
 
 /* Winner highlighting */
 .team.winner {
-    background: transparent;
-    border-left: 2px solid rgba(76, 175, 80, 0.3);
-    border-radius: 5px;
+    background: rgba(76, 175, 80, 0.05);
+    border: 1px solid rgba(76, 175, 80, 0.4);
+    border-radius: 6px;
     padding-left: 6px;
 }
 
 .team.winner .team-name {
-    color: rgba(76, 175, 80, 0.8);
+    color: var(--text-primary);
     font-weight: 600;
 }
 
@@ -1938,8 +1936,8 @@ body.pwa-mode {
     }
     
     .team-logo {
-        width: 20px;
-        height: 20px;
+        width: 32px;
+        height: 32px;
         margin-right: 4px;
     }
     
@@ -3899,6 +3897,146 @@ body.pwa-mode {
     transform: translateY(-1px);
 }
 
+.soccer-boxscore {
+    margin-top: 16px;
+}
+
+.soccer-stats-header {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    text-align: center;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    padding: 8px 0 12px;
+    border-bottom: 1px solid var(--border-primary);
+    margin-bottom: 4px;
+}
+
+.soccer-stat-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    text-align: center;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    align-items: center;
+}
+
+.soccer-stat-value {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.soccer-stat-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.soccer-lineup {
+    margin-top: 24px;
+}
+
+.soccer-lineup-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    color: var(--text-primary);
+    padding: 10px 0 8px;
+    border-bottom: 1px solid var(--border-primary);
+    margin-bottom: 4px;
+}
+
+.soccer-formation {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.soccer-player-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+}
+
+.soccer-player-table thead th {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 6px 4px;
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.soccer-player-table thead th:first-child {
+    text-align: left;
+}
+
+.soccer-player-table tbody tr {
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+
+.soccer-player-table tbody tr.player-subbed-out {
+    opacity: 0.5;
+}
+
+.soccer-player-cell {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 4px;
+    min-width: 140px;
+}
+
+.soccer-jersey {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    min-width: 20px;
+}
+
+.soccer-player-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.8rem;
+}
+
+.soccer-player-pos {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+}
+
+.soccer-player-stat {
+    text-align: center;
+    padding: 7px 4px;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+.soccer-player-stat.highlight {
+    color: var(--text-primary);
+    font-weight: 700;
+}
+
+.soccer-player-stat.muted {
+    color: rgba(255,255,255,0.15);
+}
+
+.sub-divider-row td {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 0.06em;
+    padding: 8px 4px 4px;
+    border-top: 1px solid var(--border-primary);
+}
+
 .full-boxscore-container {
     margin-top: 30px;
     padding-top: 20px;
@@ -4643,6 +4781,13 @@ body.pwa-mode {
     color: var(--text-primary);
     border-bottom-color: var(--accent-primary);
 }
+
+.game-summary-simple {
+    padding: 0 20px 20px;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
 
 .game-summary-grid {
     display: grid;
