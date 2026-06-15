@@ -121,16 +121,16 @@ body.pwa-mode {
 
 /* Live games indicator in site header */
 .live-games-indicator {
-    background: rgba(220, 53, 69, 0.1);
+    background: transparent;
     color: #dc3545;
-    border: 1px solid rgba(220, 53, 69, 0.2);
-    padding: 6px 12px;
+    border: none;
+    padding: 6px 14px;
     border-radius: 7px;
     font-size: 0.8rem;
     font-weight: 600;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
     user-select: none;
@@ -138,28 +138,21 @@ body.pwa-mode {
 }
 
 .live-games-indicator:hover {
-    background: rgba(220, 53, 69, 0.2);
-    border-color: rgba(220, 53, 69, 0.4);
+    background: rgba(220, 53, 69, 0.1);
 }
 
 .live-games-indicator.active {
     background: #dc3545;
     color: #ffffff;
-    border-color: #dc3545;
 }
 
 .live-games-indicator .count {
-    background: #dc3545;
-    color: #ffffff;
-    padding: 1px 6px;
-    border-radius: 4px;
-    font-size: 0.7rem;
-    font-weight: 700;
-    transition: all 0.2s ease;
+    font-size: 0.8rem;
+    font-weight: 600;
 }
 
 .live-games-indicator.active .count {
-    background: rgba(0, 0, 0, 0.2);
+    color: #ffffff;
 }
 
 /* Date navigation styling */
@@ -5792,4 +5785,141 @@ body.pwa-mode {
 .schedule-status {
     font-size: 0.75rem;
     color: var(--text-muted);
+}
+
+/* UFC fight detail */
+.ufc-fight-detail {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+
+.ufc-event-name {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    text-align: center;
+    font-weight: 500;
+}
+
+.ufc-weight-class {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    text-align: center;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.ufc-matchup {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    width: 100%;
+    max-width: 560px;
+    justify-content: center;
+}
+
+.ufc-fighter {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    padding: 16px;
+    border-radius: 8px;
+    background: var(--bg-card-secondary);
+    border: 1px solid var(--border-primary);
+}
+
+.ufc-fighter.ufc-winner {
+    border-color: rgba(76, 175, 80, 0.4);
+    background: rgba(76, 175, 80, 0.06);
+}
+
+.ufc-fighter-name {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    text-align: center;
+}
+
+.ufc-fighter-record {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.ufc-win-badge {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #4caf50;
+    letter-spacing: 0.08em;
+}
+
+.ufc-vs {
+    font-size: 0.85rem;
+    font-weight: 800;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.ufc-result-detail {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+    text-align: center;
+}
+
+.ufc-stats-table {
+    width: 100%;
+    max-width: 480px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-top: 8px;
+}
+
+.ufc-stat-row {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.ufc-stat-row:last-child {
+    border-bottom: none;
+}
+
+.ufc-stat-row:nth-child(even) {
+    background: var(--bg-card-secondary);
+}
+
+.ufc-stat-val {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.ufc-stat-val.away {
+    text-align: left;
+}
+
+.ufc-stat-val.home {
+    text-align: right;
+}
+
+.ufc-stat-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0 12px;
+    white-space: nowrap;
 }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useScores } from './hooks/useScores'
-import { fetchGameSummary, fetchStandings, filterStandingsByTeams, fetchTeamInfo, fetchTeamRoster, fetchTeamSchedule } from './lib/espnApi'
+import { fetchGameSummary, fetchStandings, filterStandingsByTeams, fetchTeamInfo, fetchTeamRoster, fetchTeamSchedule, fetchUFCFightStats } from './lib/espnApi'
 
 const SOCCER_SPORT_KEYS = ['worldcup', 'mls', 'epl', 'ucl', 'laliga', 'bundesliga', 'seriea', 'ligue1']
 
@@ -11,6 +11,7 @@ const SPORT_BUTTONS = [
   { label: 'MLB', value: 'mlb' },
   { label: 'NHL', value: 'nhl' },
   { label: 'Soccer', value: 'soccer' },
+  { label: 'UFC', value: 'ufc' },
   { label: 'CFB', value: 'college-football' },
   { label: 'CBB', value: 'college-basketball' },
 ]
@@ -109,6 +110,8 @@ function getSportDisplayName(sport) {
       return 'Serie A'
     case 'ligue1':
       return 'Ligue 1'
+    case 'ufc':
+      return 'UFC'
     default:
       return sport?.toUpperCase() ?? 'SPORT'
   }
@@ -237,6 +240,11 @@ function hexToRgba(hex, alpha = 0.9) {
 }
 
 function getWinner(game) {
+  if (game.sport === 'ufc') {
+    if (game.awayWinner) return 'away'
+    if (game.homeWinner) return 'home'
+    return null
+  }
   const awayScore = Number(game.awayScore)
   const homeScore = Number(game.homeScore)
   if (Number.isNaN(awayScore) || Number.isNaN(homeScore)) return null
@@ -580,6 +588,7 @@ function GameSummary({ game, onBack, onOpenTeam }) {
   const [standingsData, setStandingsData] = useState(null)
   const [standingsLoading, setStandingsLoading] = useState(false)
   const [standingsError, setStandingsError] = useState(null)
+  const [ufcStats, setUfcStats] = useState(null)
 
   // ... (keep all the existing useEffects and extraction logic)
 
@@ -638,6 +647,15 @@ function GameSummary({ game, onBack, onOpenTeam }) {
       cancelled = true
     }
   }, [game?.id, game?.sport])
+
+  useEffect(() => {
+    if (game?.sport !== 'ufc' || !game?.eventId || !game?.id) return
+    let cancelled = false
+    fetchUFCFightStats(game.eventId, game.id, game.awayAthleteId, game.homeAthleteId)
+      .then((stats) => { if (!cancelled) setUfcStats(stats) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [game?.id, game?.eventId, game?.awayAthleteId, game?.homeAthleteId])
 
   // Derive game state: 'preview', 'live', or 'final'
   const gameState = (game.status === 'live' || game.status === 'halftime') ? 'live'
@@ -1686,6 +1704,56 @@ function GameSummary({ game, onBack, onOpenTeam }) {
 
   // Reusable: Box Score tab content
   const renderBoxScoreTab = () => {
+    if (game.sport === 'ufc') {
+      const awayWon = game.awayWinner
+      const homeWon = game.homeWinner
+      const as = ufcStats?.awayStats
+      const hs = ufcStats?.homeStats
+
+      const UFC_STAT_ROWS = [
+        { label: 'Sig Strikes', awayKey: null, homeKey: null, awayFn: () => as ? `${as['SSL'] ?? 0} of ${as['SSA'] ?? 0}` : '—', homeFn: () => hs ? `${hs['SSL'] ?? 0} of ${hs['SSA'] ?? 0}` : '—' },
+        { label: 'Total Strikes', awayFn: () => as ? `${as['TSL'] ?? 0} of ${as['TSA'] ?? 0}` : '—', homeFn: () => hs ? `${hs['TSL'] ?? 0} of ${hs['TSA'] ?? 0}` : '—' },
+        { label: 'Knockdowns', awayFn: () => as?.['KD'] ?? '—', homeFn: () => hs?.['KD'] ?? '—' },
+        { label: 'Takedowns', awayFn: () => as ? `${as['TDL'] ?? 0} of ${as['TDA'] ?? 0}` : '—', homeFn: () => hs ? `${hs['TDL'] ?? 0} of ${hs['TDA'] ?? 0}` : '—' },
+        { label: 'Submissions', awayFn: () => as?.['SM'] ?? '—', homeFn: () => hs?.['SM'] ?? '—' },
+        { label: 'Control Time', awayFn: () => as?.['TIC'] ?? '—', homeFn: () => hs?.['TIC'] ?? '—' },
+      ]
+
+      return (
+        <div className="ufc-fight-detail">
+          {game.eventName && <div className="ufc-event-name">{game.eventName}</div>}
+          {game.weightClass && <div className="ufc-weight-class">{game.weightClass}</div>}
+          <div className="ufc-matchup">
+            <div className={['ufc-fighter', awayWon ? 'ufc-winner' : ''].filter(Boolean).join(' ')}>
+              {awayWon && <span className="ufc-win-badge">WIN</span>}
+              <span className="ufc-fighter-name">{game.awayTeam}</span>
+              {game.awayTeamRecord && <span className="ufc-fighter-record">{game.awayTeamRecord}</span>}
+            </div>
+            <div className="ufc-vs">VS</div>
+            <div className={['ufc-fighter', homeWon ? 'ufc-winner' : ''].filter(Boolean).join(' ')}>
+              {homeWon && <span className="ufc-win-badge">WIN</span>}
+              <span className="ufc-fighter-name">{game.homeTeam}</span>
+              {game.homeTeamRecord && <span className="ufc-fighter-record">{game.homeTeamRecord}</span>}
+            </div>
+          </div>
+          {game.status !== 'scheduled' && game.time && (
+            <div className="ufc-result-detail">{game.time}</div>
+          )}
+          {(ufcStats || game.status !== 'scheduled') && (
+            <div className="ufc-stats-table">
+              {UFC_STAT_ROWS.map(({ label, awayFn, homeFn }) => (
+                <div key={label} className="ufc-stat-row">
+                  <span className="ufc-stat-val away">{awayFn()}</span>
+                  <span className="ufc-stat-label">{label}</span>
+                  <span className="ufc-stat-val home">{homeFn()}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )
+    }
+
     const isSoccer = SOCCER_SPORT_KEYS.includes(game.sport)
 
     if (isSoccer) {
@@ -2088,10 +2156,10 @@ function GameSummary({ game, onBack, onOpenTeam }) {
 
   return (
     <div className="game-summary-container">
-      {isLoading && <div className="info">Loading game summary...</div>}
-      {error && <div className="error">Error loading summary: {error}</div>}
+      {isLoading && game.sport !== 'ufc' && <div className="info">Loading game summary...</div>}
+      {error && game.sport !== 'ufc' && <div className="error">Error loading summary: {error}</div>}
 
-      {summaryData && (
+      {(summaryData || game.sport === 'ufc') && (
         <>
           {gameState === 'preview' && renderHeader()}
           {gameState === 'preview' && renderPreviewLayout()}
@@ -2608,10 +2676,8 @@ function App() {
                 setSelectedGame(null)
               }}
             >
-              <span className="count" id="liveGamesCount">
-                {liveCount}
-              </span>
               <span>Live</span>
+              <span className="count">{liveCount}</span>
             </div>
             <div className="filter-divider"></div>
             {SPORT_BUTTONS.map((button) => (

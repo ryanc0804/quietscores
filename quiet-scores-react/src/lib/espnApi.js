@@ -7,6 +7,7 @@ const ESPN_APIS = {
     'https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard',
   'college-basketball':
     'https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?limit=200&groups=50',
+  ufc: 'https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard',
   worldcup: 'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard',
   mls: 'https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard',
   epl: 'https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/scoreboard',
@@ -26,6 +27,7 @@ const ESPN_SUMMARY_APIS = {
     'https://site.api.espn.com/apis/site/v2/sports/football/college-football/summary',
   'college-basketball':
     'https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/summary',
+  ufc: 'https://site.api.espn.com/apis/site/v2/sports/mma/ufc/summary',
   worldcup: 'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/summary',
   mls: 'https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/summary',
   epl: 'https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary',
@@ -456,6 +458,63 @@ function transformEvent(event, sportKey) {
   return baseGame
 }
 
+function transformUFCFight(event, competition) {
+  if (!competition) return null
+  const competitors = competition.competitors ?? []
+  if (competitors.length < 2) return null
+
+  const fighter1 = competitors[0]
+  const fighter2 = competitors[1]
+  if (!fighter1?.athlete || !fighter2?.athlete) return null
+
+  const fighter1Name = fighter1.athlete.displayName || fighter1.athlete.fullName
+  const fighter2Name = fighter2.athlete.displayName || fighter2.athlete.fullName
+  if (!fighter1Name || !fighter2Name) return null
+
+  const status = competition.status ?? event.status ?? {}
+  const statusType = status.type ?? {}
+  const normalizedStatus = normalizeStatus(
+    statusType.state,
+    statusType.detail,
+    statusType.shortDetail,
+    'ufc',
+  )
+
+  const timeDetail = statusType.shortDetail || statusType.detail || ''
+
+  return {
+    id: competition.id ?? `ufc-${fighter1Name}-${fighter2Name}`,
+    sport: 'ufc',
+    sportName: event.name || 'UFC',
+    awayTeam: fighter1Name,
+    homeTeam: fighter2Name,
+    awayScore: '',
+    homeScore: '',
+    awayTeamRecord: extractRecord(fighter1),
+    homeTeamRecord: extractRecord(fighter2),
+    awayWinner: fighter1.winner === true,
+    homeWinner: fighter2.winner === true,
+    status: normalizedStatus,
+    time: timeDetail,
+    displayTime: normalizedStatus === 'scheduled' ? formatDisplayTime(competition.date || event.date) : '',
+    fullDateTime: competition.date || event.date,
+    gameDate: competition.date || event.date,
+    awayLogo: fighter1.athlete.flag?.href || null,
+    homeLogo: fighter2.athlete.flag?.href || null,
+    awayShortName: fighter1.athlete.shortName || null,
+    homeShortName: fighter2.athlete.shortName || null,
+    awayAbbreviation: null,
+    homeAbbreviation: null,
+    awayTeamId: null,
+    homeTeamId: null,
+    weightClass: competition.type?.text || null,
+    eventName: event.name || '',
+    eventId: event.id,
+    awayAthleteId: fighter1.id,
+    homeAthleteId: fighter2.id,
+  }
+}
+
 async function fetchSportScoreboard(sportKey, date, { signal } = {}) {
   const endpoint = ESPN_APIS[sportKey]
   if (!endpoint) return []
@@ -492,6 +551,12 @@ async function fetchSportScoreboard(sportKey, date, { signal } = {}) {
     const eventDateObj = stripTime(eventDate)
     return eventDateObj.getTime() === targetDateObj.getTime()
   })
+
+  if (sportKey === 'ufc') {
+    return filteredEvents.flatMap((event) =>
+      (event.competitions ?? []).map((comp) => transformUFCFight(event, comp)).filter(Boolean),
+    )
+  }
 
   return filteredEvents
     .map((event) => transformEvent(event, sportKey))
@@ -901,5 +966,31 @@ async function fetchTeamSchedule(sportKey, teamId, { signal } = {}) {
   }
 }
 
-export { ESPN_APIS, ESPN_SUMMARY_APIS, fetchAllScoreboards, fetchSportScoreboard, fetchGameSummary, fetchTeamConferences, fetchStandings, filterStandingsByTeams, fetchTeamInfo, fetchTeamRoster, fetchTeamSchedule }
+async function fetchUFCFightStats(eventId, compId, awayAthleteId, homeAthleteId, { signal } = {}) {
+  const base = `https://sports.core.api.espn.com/v2/sports/mma/leagues/ufc/events/${eventId}/competitions/${compId}/competitors`
+  const fetchStats = async (athleteId) => {
+    try {
+      const res = await fetch(`${base}/${athleteId}/statistics?lang=en&region=us`, { signal })
+      if (!res.ok) return null
+      const data = await res.json()
+      const cats = data?.splits?.categories ?? []
+      const statMap = {}
+      for (const cat of cats) {
+        for (const s of cat.stats ?? []) {
+          statMap[s.abbreviation?.trim()] = s.displayValue
+        }
+      }
+      return statMap
+    } catch {
+      return null
+    }
+  }
+  const [awayStats, homeStats] = await Promise.all([
+    fetchStats(awayAthleteId),
+    fetchStats(homeAthleteId),
+  ])
+  return { awayStats, homeStats }
+}
+
+export { ESPN_APIS, ESPN_SUMMARY_APIS, fetchAllScoreboards, fetchSportScoreboard, fetchGameSummary, fetchTeamConferences, fetchStandings, filterStandingsByTeams, fetchTeamInfo, fetchTeamRoster, fetchTeamSchedule, fetchUFCFightStats }
 
