@@ -5,7 +5,7 @@
   "rewrites": [
     {
       "source": "/fotmob/:path*",
-      "destination": "https://www.fotmob.com/:path*"
+      "destination": "/api/fotmob/:path*"
     },
     {
       "source": "/(.*)",
