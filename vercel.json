@@ -4,6 +4,10 @@
   "installCommand": "cd quiet-scores-react && npm install",
   "rewrites": [
     {
+      "source": "/fotmob/:path*",
+      "destination": "/api/fotmob/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
