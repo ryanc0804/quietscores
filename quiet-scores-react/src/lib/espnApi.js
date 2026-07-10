@@ -1,3 +1,21 @@
+import {
+  fetchFotmobSoccerScoreboard,
+  fetchFotmobMatchDetail,
+} from './fotmobApi'
+
+// Soccer leagues are served by FotMob (richer data), not ESPN. Keep in sync
+// with SOCCER_SPORT_KEYS in App.jsx.
+const SOCCER_SPORT_KEYS = new Set([
+  'worldcup',
+  'mls',
+  'epl',
+  'ucl',
+  'laliga',
+  'bundesliga',
+  'seriea',
+  'ligue1',
+])
+
 const ESPN_APIS = {
   nfl: 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard',
   nba: 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard',
@@ -564,16 +582,21 @@ async function fetchSportScoreboard(sportKey, date, { signal } = {}) {
 }
 
 async function fetchAllScoreboards(date, { signal } = {}) {
-  const sportKeys = Object.keys(ESPN_APIS)
+  // Soccer comes from FotMob (one call covers all leagues); everything else
+  // from ESPN, one call per sport.
+  const espnKeys = Object.keys(ESPN_APIS).filter((key) => !SOCCER_SPORT_KEYS.has(key))
 
-  const results = await Promise.allSettled(
-    sportKeys.map((sport) => fetchSportScoreboard(sport, date, { signal })),
-  )
+  const results = await Promise.allSettled([
+    ...espnKeys.map((sport) => fetchSportScoreboard(sport, date, { signal })),
+    fetchFotmobSoccerScoreboard(date, { signal }),
+  ])
 
   const scores = []
   results.forEach((result) => {
     if (result.status === 'fulfilled' && Array.isArray(result.value)) {
       scores.push(...result.value)
+    } else if (result.status === 'rejected') {
+      console.warn('Scoreboard fetch failed:', result.reason?.message ?? result.reason)
     }
   })
 
@@ -581,18 +604,18 @@ async function fetchAllScoreboards(date, { signal } = {}) {
 }
 
 async function fetchGameSummary(sportKey, gameId, { signal } = {}) {
+  // Soccer detail comes from FotMob and is returned pre-normalized.
+  if (SOCCER_SPORT_KEYS.has(sportKey)) {
+    return fetchFotmobMatchDetail(gameId, { signal })
+  }
+
   const endpoint = ESPN_SUMMARY_APIS[sportKey]
   if (!endpoint) {
     throw new Error(`No summary endpoint for sport: ${sportKey}`)
   }
 
   const url = `${endpoint}?event=${gameId}`
-  
-  // Log the URL for Postman testing
-  console.log('=== API URL FOR POSTMAN ===')
-  console.log('GET', url)
-  console.log('Copy this URL to test in Postman')
-  
+
   const response = await fetch(url, { signal })
 
   if (!response.ok) {
