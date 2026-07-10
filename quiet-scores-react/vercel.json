@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/fotmob/:path*",
+      "destination": "/api/fotmob/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
