@@ -589,6 +589,9 @@ function GameSummary({ game, onBack, onOpenTeam }) {
   const [standingsLoading, setStandingsLoading] = useState(false)
   const [standingsError, setStandingsError] = useState(null)
   const [ufcStats, setUfcStats] = useState(null)
+  const [statPeriod, setStatPeriod] = useState('All')
+  const [selectedShot, setSelectedShot] = useState(null)
+  const [showSubs, setShowSubs] = useState(false)
 
   // ... (keep all the existing useEffects and extraction logic)
 
@@ -684,6 +687,12 @@ function GameSummary({ game, onBack, onOpenTeam }) {
     async function loadStandings() {
       if (!game?.sport) {
         setStandingsError('No sport specified')
+        return
+      }
+
+      // Soccer is served by FotMob, which we don't wire to ESPN standings.
+      if (SOCCER_SPORT_KEYS.includes(game.sport)) {
+        setStandingsError('')
         return
       }
 
@@ -1757,121 +1766,539 @@ function GameSummary({ game, onBack, onOpenTeam }) {
     const isSoccer = SOCCER_SPORT_KEYS.includes(game.sport)
 
     if (isSoccer) {
-      const teams = summaryData?.boxscore?.teams ?? []
-      const awayTeamData = teams.find(t => t.homeAway === 'away') ?? teams[0]
-      const homeTeamData = teams.find(t => t.homeAway === 'home') ?? teams[1]
+      // summaryData is the FotMob-normalized detail (see fotmobApi.js).
+      const detail = summaryData ?? {}
+      const stats = detail.stats ?? []
+      const timeline = detail.timeline ?? []
+      const lineups = detail.lineups ?? {}
+      const awayAbbr = game.awayAbbreviation
+      const homeAbbr = game.homeAbbreviation
+      const awayColor = detail.colors?.away || '#4ea1f3'
+      const homeColor = detail.colors?.home || '#f0883e'
+      const potmId = detail.potm?.id ?? null
 
-      const awayStats = Object.fromEntries(
-        (awayTeamData?.statistics ?? []).map(s => [s.name, s.displayValue])
-      )
-      const homeStats = Object.fromEntries(
-        (homeTeamData?.statistics ?? []).map(s => [s.name, s.displayValue])
-      )
+      const parseNum = (v) => {
+        const n = parseFloat(String(v ?? '').replace(/[^0-9.]/g, ''))
+        return Number.isNaN(n) ? 0 : n
+      }
+      const ratingBucket = (r) => (r >= 7 ? 'high' : r >= 6 ? 'mid' : 'low')
 
-      const SOCCER_STATS = [
-        { key: 'possessionPct', label: 'Possession %' },
-        { key: 'totalShots', label: 'Shots' },
-        { key: 'shotsOnTarget', label: 'On Target' },
-        { key: 'wonCorners', label: 'Corners' },
-        { key: 'foulsCommitted', label: 'Fouls' },
-        { key: 'yellowCards', label: 'Yellow Cards' },
-        { key: 'redCards', label: 'Red Cards' },
-        { key: 'offsides', label: 'Offsides' },
-        { key: 'saves', label: 'Saves' },
-      ]
-
-      const rosters = summaryData?.rosters ?? []
-      const PLAYER_COLS = [
-        { key: 'G', label: 'G' },
-        { key: 'A', label: 'A' },
-        { key: 'SHOT', label: 'SH' },
-        { key: 'SOG', label: 'SOG' },
-        { key: 'YC', label: 'YC' },
-        { key: 'RC', label: 'RC' },
-        { key: 'SV', label: 'SV' },
-      ]
-
-      const renderLineup = (rosterData) => {
-        if (!rosterData) return null
-        const players = rosterData.roster ?? []
-        const starters = players.filter(p => p.starter)
-        const subs = players.filter(p => !p.starter)
-        const teamName = rosterData.team?.displayName ?? ''
-
-        const renderRow = (p, idx) => {
-          const statMap = Object.fromEntries((p.stats ?? []).map(s => [s.abbreviation, s.displayValue]))
-          const isGK = p.position?.abbreviation === 'G'
-          return (
-            <tr key={idx} className={p.subbedOut ? 'player-subbed-out' : ''}>
-              <td className="soccer-player-cell">
-                <span className="soccer-jersey">#{p.jersey}</span>
-                <span className="soccer-player-name">{p.athlete?.shortName ?? p.athlete?.displayName}</span>
-                <span className="soccer-player-pos">{p.position?.abbreviation}</span>
-              </td>
-              {PLAYER_COLS.map(col => {
-                if (col.key === 'SV' && !isGK) return <td key={col.key} className="soccer-player-stat muted">-</td>
-                const val = statMap[col.key]
-                const highlight = val && val !== '0' && col.key !== 'SV'
-                return (
-                  <td key={col.key} className={`soccer-player-stat ${highlight ? 'highlight' : ''}`}>
-                    {val ?? '-'}
-                  </td>
-                )
-              })}
-            </tr>
-          )
-        }
-
+      const renderStatRow = (s) => {
+        const a = parseNum(s.away)
+        const h = parseNum(s.home)
+        const total = a + h
+        const awayP = total > 0 ? (a / total) * 100 : 50
+        const homeP = total > 0 ? (h / total) * 100 : 50
         return (
-          <div className="soccer-lineup">
-            <div className="soccer-lineup-header">
-              <span>{teamName}</span>
-              {rosterData.formation && <span className="soccer-formation">{rosterData.formation}</span>}
+          <div key={s.key} className="soccer-stat-block">
+            <div className="soccer-stat-row">
+              <span className="soccer-stat-value" style={s.highlighted === 'home' ? { color: homeColor } : undefined}>{s.home}</span>
+              <span className="soccer-stat-label">{s.label}</span>
+              <span className="soccer-stat-value" style={s.highlighted === 'away' ? { color: awayColor } : undefined}>{s.away}</span>
             </div>
-            <div className="table-responsive">
-              <table className="soccer-player-table">
-                <thead>
-                  <tr>
-                    <th>PLAYER</th>
-                    {PLAYER_COLS.map(c => <th key={c.key}>{c.label}</th>)}
-                  </tr>
-                </thead>
-                <tbody>
-                  {starters.map(renderRow)}
-                  {subs.length > 0 && (
-                    <tr className="sub-divider-row">
-                      <td colSpan={PLAYER_COLS.length + 1}>SUBSTITUTES</td>
-                    </tr>
-                  )}
-                  {subs.map(renderRow)}
-                </tbody>
-              </table>
+            <div className="soccer-stat-bar">
+              <div className="soccer-stat-bar-seg" style={{ width: `${homeP}%`, background: homeColor }} />
+              <div className="soccer-stat-bar-seg" style={{ width: `${awayP}%`, background: awayColor }} />
             </div>
           </div>
         )
       }
 
-      const awayRoster = rosters.find(r => r.homeAway === 'away') ?? rosters[0]
-      const homeRoster = rosters.find(r => r.homeAway === 'home') ?? rosters[1]
+      const eventIcon = (e) => {
+        if (e.type === 'Goal') return <span className="ev-ico ball">⚽</span>
+        if (e.type === 'Card') return <span className={`ev-ico card ${e.card === 'Red' ? 'red' : 'yellow'}`} />
+        if (e.type === 'Substitution') {
+          return (
+            <span className="ev-ico sub">
+              <span className="in">▲</span>
+              <span className="out">▼</span>
+            </span>
+          )
+        }
+        return null
+      }
+
+      const eventContent = (e) => {
+        if (e.type === 'Goal') {
+          const detail = [e.description, e.assist].filter(Boolean).join(', ')
+          return (
+            <>
+              <div className="ev-name">
+                {e.player}
+                {e.score && <span className="ev-score"> ({e.score[0]} - {e.score[1]})</span>}
+                {e.ownGoal && <span className="ev-score"> (OG)</span>}
+              </div>
+              {detail && <div className="ev-detail">{detail}</div>}
+            </>
+          )
+        }
+        if (e.type === 'Card') return <div className="ev-name">{e.player}</div>
+        if (e.type === 'Substitution') {
+          return (
+            <>
+              <div className="ev-name ev-in">{e.playerIn}</div>
+              <div className="ev-name ev-out">{e.playerOut}</div>
+            </>
+          )
+        }
+        return null
+      }
+
+      const renderTimeline = () => {
+        if (!timeline.length) return null
+        return (
+          <div className="soccer-events">
+            <div className="soccer-section-title center">Events</div>
+            {timeline.map((e, i) => {
+              if (e.type === 'Half') {
+                return (
+                  <div key={i} className="ev-divider">
+                    <span>{[e.label, `${e.homeScore} - ${e.awayScore}`].filter(Boolean).join(' ')}</span>
+                  </div>
+                )
+              }
+              if (e.type === 'AddedTime') {
+                return <div key={i} className="ev-added">{e.minutesText}</div>
+              }
+              return (
+                <div key={i} className="ev-row">
+                  <div className="ev-side left">{e.isHome && eventContent(e)}</div>
+                  <div className="ev-mid">
+                    <span className="ev-ico-slot">{e.isHome ? eventIcon(e) : null}</span>
+                    <span className="ev-min">
+                      {e.time}'{e.overloadTime ? <sup className="ev-ot">+{e.overloadTime}</sup> : null}
+                    </span>
+                    <span className="ev-ico-slot">{!e.isHome ? eventIcon(e) : null}</span>
+                  </div>
+                  <div className="ev-side right">{!e.isHome && eventContent(e)}</div>
+                </div>
+              )
+            })}
+          </div>
+        )
+      }
+
+      const renderPlayerNode = (p, sideKey) => {
+        if (p.hx == null || p.hy == null) return null
+        const left = sideKey === 'home' ? p.hx * 50 : 100 - p.hx * 50
+        const top = p.hy * 100
+        const ev = p.events || {}
+        const lastName = p.name.split(' ').slice(-1)[0]
+        return (
+          <div key={p.id ?? `${sideKey}-${p.shirt}`} className={`pitch-player ${sideKey}`} style={{ left: `${left}%`, top: `${top}%` }}>
+            <div className="pitch-avatar-wrap">
+              {p.img && (
+                <img
+                  className="pitch-avatar"
+                  src={p.img}
+                  alt=""
+                  loading="lazy"
+                  onError={(e) => { e.currentTarget.classList.add('img-failed') }}
+                />
+              )}
+              <span className="pitch-avatar-fallback">{p.shirt}</span>
+              {p.rating != null && (
+                <span className={`pitch-rating ${p.id === potmId ? 'rating-potm' : `rating-${ratingBucket(p.rating)}`}`}>
+                  {p.id === potmId && <span className="potm-star">★</span>}{p.rating}
+                </span>
+              )}
+              {p.isCaptain && <span className="pitch-captain">C</span>}
+              <span className="pitch-markers">
+                {ev.yellow && !ev.red && <span className="pitch-card yellow" />}
+                {ev.red && <span className="pitch-card red" />}
+                {ev.goals > 0 && <span className="pitch-goal">⚽{ev.goals > 1 ? `×${ev.goals}` : ''}</span>}
+                {ev.subOut && <span className="pitch-sub out" title={`Off ${ev.subOut}'`}>▾</span>}
+                {ev.subIn && <span className="pitch-sub in" title={`On ${ev.subIn}'`}>▴</span>}
+              </span>
+            </div>
+            <div className="pitch-label">
+              <span className="pitch-num">{p.shirt}</span> {lastName}
+            </div>
+          </div>
+        )
+      }
+
+      const renderCombinedPitch = () => {
+        const homeStarters = lineups.home?.starters ?? []
+        const awayStarters = lineups.away?.starters ?? []
+        if (!homeStarters.some(p => p.hx != null) && !awayStarters.some(p => p.hx != null)) return null
+        return (
+          <div className="pitch-wrap">
+            <div className="pitch-field">
+              <div className="pitch-halfway" />
+              <div className="pitch-center-circle" />
+              {homeStarters.map(p => renderPlayerNode(p, 'home'))}
+              {awayStarters.map(p => renderPlayerNode(p, 'away'))}
+            </div>
+          </div>
+        )
+      }
+
+      const renderLineup = (side, accent) => {
+        if (!side || !side.starters?.length) return null
+        const renderRow = (p, idx) => (
+          <div key={idx} className="soccer-lineup-row">
+            <span className="soccer-jersey">#{p.shirt}</span>
+            <span className="soccer-player-name">{p.name}</span>
+            {p.rating != null && (
+              <span className={`soccer-rating ${p.id === potmId ? 'rating-potm' : `rating-${ratingBucket(p.rating)}`}`}>
+                {p.id === potmId && <span className="potm-star">★</span>}{p.rating}
+              </span>
+            )}
+          </div>
+        )
+        const subs = side.subs ?? []
+        return (
+          <div className="soccer-lineup">
+            <div className="soccer-lineup-header">
+              <span>{side.teamName}</span>
+              {side.formation && <span className="soccer-formation">{side.formation}</span>}
+            </div>
+            {side.starters.map(renderRow)}
+            {showSubs && subs.length > 0 && (
+              <>
+                <div className="subs-label">Substitutes</div>
+                {subs.map(renderRow)}
+              </>
+            )}
+          </div>
+        )
+      }
+
+      const renderInfo = () => {
+        const info = detail.info
+        if (!info) return null
+        const { stadium, attendance, referee, weather, highlights } = info
+        if (!stadium && !weather && attendance == null && !referee && !highlights) return null
+        const cap = stadium?.capacity
+        const pct = cap && attendance ? Math.round((attendance / cap) * 100) : null
+        const titleCase = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s)
+        const facts = []
+        if (referee?.name) facts.push(['Referee', referee.name])
+        if (cap) facts.push(['Capacity', cap.toLocaleString()])
+        if (attendance != null) facts.push(['Attendance', `${attendance.toLocaleString()}${pct != null ? ` (${pct}%)` : ''}`])
+        if (stadium?.surface) facts.push(['Surface', titleCase(stadium.surface)])
+        if (weather) facts.push(['Weather', `${weather.tempF}°F${weather.description ? ` · ${weather.description}` : ''}`])
+        return (
+          <div className="soccer-info">
+            <div className="soccer-section-title">Match Info</div>
+            {highlights?.url && (
+              <a className="info-highlights" href={highlights.url} target="_blank" rel="noreferrer">
+                {highlights.image && <img src={highlights.image} alt="" />}
+                <span className="info-highlights-text">
+                  <span className="info-highlights-label">▶ Official highlights</span>
+                  {highlights.source && <span className="info-highlights-source">{highlights.source}</span>}
+                </span>
+              </a>
+            )}
+            {stadium?.name && (
+              <div className="info-stadium">
+                <div className="info-stadium-name">{stadium.name}</div>
+                {(stadium.city || stadium.country) && (
+                  <div className="info-stadium-loc">{[stadium.city, stadium.country].filter(Boolean).join(', ')}</div>
+                )}
+              </div>
+            )}
+            {facts.length > 0 && (
+              <div className="info-grid">
+                {facts.map(([k, v]) => (
+                  <div key={k} className="info-item">
+                    <span className="info-k">{k}</span>
+                    <span className="info-v">{v}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      }
+
+      const hasContent = stats.length || timeline.length || lineups.home || lineups.away
+
+      const roundName = (r) => {
+        const map = {
+          '1/2': 'Semi-final', '1/4': 'Quarter-final', '1/8': 'Round of 16',
+          '1/16': 'Round of 32', 'final': 'Final', 'Final': 'Final',
+        }
+        return map[r] || r
+      }
+
+      const hs = detail.home || {}
+      const as = detail.away || {}
+      const started = detail.status?.started ?? (game.status !== 'scheduled')
+      const statusText = detail.status?.reason || game.time || ''
+      const homeLogo = hs.logo || game.homeLogo
+      const awayLogo = as.logo || game.awayLogo
+      const homeName = hs.name || game.homeTeam
+      const awayName = as.name || game.awayTeam
+      const homeScore = hs.score ?? game.homeScore
+      const awayScore = as.score ?? game.awayScore
+
+      const renderHeader = () => (
+        <div className="msoccer-hd">
+          {(detail.league || detail.round) && (
+            <div className="msoccer-hd-comp">
+              {[detail.league, roundName(detail.round)].filter(Boolean).join(' · ')}
+            </div>
+          )}
+          <div className="msoccer-hd-teams">
+            <div className="msoccer-hd-team">
+              {homeLogo && <img className="msoccer-hd-logo" src={homeLogo} alt="" />}
+              <span className="msoccer-hd-name">{homeName}</span>
+            </div>
+            <div className="msoccer-hd-mid">
+              {started
+                ? <div className="msoccer-hd-score">{homeScore}<span>-</span>{awayScore}</div>
+                : <div className="msoccer-hd-time">{game.displayTime || 'vs'}</div>}
+              {statusText && <div className="msoccer-hd-status">{statusText}</div>}
+            </div>
+            <div className="msoccer-hd-team">
+              {awayLogo && <img className="msoccer-hd-logo" src={awayLogo} alt="" />}
+              <span className="msoccer-hd-name">{awayName}</span>
+            </div>
+          </div>
+        </div>
+      )
+
+      const renderMomentum = () => {
+        const data = detail.momentum
+        if (!Array.isArray(data) || !data.length) return null
+        const W = 100
+        const H = 46
+        const cx = H / 2
+        const n = data.length
+        const maxAbs = Math.max(1, ...data.map(d => Math.abs(d.value)))
+        const xAt = (i) => (i / (n - 1)) * W
+        const yAt = (v) => cx - (v / maxAbs) * cx
+        let path = `M 0 ${cx}`
+        data.forEach((pt, i) => { path += ` L ${xAt(i).toFixed(2)} ${yAt(pt.value).toFixed(2)}` })
+        path += ` L ${W} ${cx} Z`
+        return (
+          <div className="momentum">
+            <svg className="momentum-svg" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
+              <defs>
+                <clipPath id="momTop"><rect x="0" y="0" width={W} height={cx} /></clipPath>
+                <clipPath id="momBot"><rect x="0" y={cx} width={W} height={H - cx} /></clipPath>
+              </defs>
+              <path d={path} fill={homeColor} clipPath="url(#momTop)" />
+              <path d={path} fill={awayColor} clipPath="url(#momBot)" />
+              <line x1="0" y1={cx} x2={W} y2={cx} stroke="rgba(255,255,255,0.25)" strokeWidth="0.2" />
+              <line x1="50" y1="0" x2="50" y2={H} stroke="rgba(255,255,255,0.25)" strokeWidth="0.2" strokeDasharray="1 1.4" />
+            </svg>
+            <div className="mom-axis">
+              <span>0'</span>
+              <span>HT</span>
+              <span>FT</span>
+            </div>
+          </div>
+        )
+      }
+
+      const infoEl = renderInfo()
+      const hasMomentum = Array.isArray(detail.momentum) && detail.momentum.length > 0
+
+      // ---- Full match stats: all groups, period filter (All/1st/2nd), pills ----
+      const statPeriods = detail.statPeriods
+      const activePeriod = statPeriods?.[statPeriod] ? statPeriod : 'All'
+      const statGroups = statPeriods?.[activePeriod] ?? []
+      const periodBtns = statPeriods ? ['All', 'FirstHalf', 'SecondHalf'].filter(k => statPeriods[k]) : []
+      const periodLabel = { All: 'All', FirstHalf: '1st', SecondHalf: '2nd' }
+
+      const renderStat = (s) => {
+        if (s.type === 'graph') {
+          const h = parseNum(s.home)
+          const a = parseNum(s.away)
+          const tot = h + a || 1
+          return (
+            <div key={s.key} className="fstat-graph">
+              <div className="fstat-graph-title">{s.label}</div>
+              <div className="fstat-bar">
+                <div className="fstat-bar-seg" style={{ width: `${(h / tot) * 100}%`, background: homeColor }}>{s.home}%</div>
+                <div className="fstat-bar-seg" style={{ width: `${(a / tot) * 100}%`, background: awayColor }}>{s.away}%</div>
+              </div>
+            </div>
+          )
+        }
+        return (
+          <div key={s.key} className="fstat-row">
+            <span className="fstat-val">
+              {s.highlighted === 'home'
+                ? <span className="fstat-pill" style={{ background: homeColor }}>{s.home}</span>
+                : <span>{s.home}</span>}
+            </span>
+            <span className="fstat-label">{s.label}</span>
+            <span className="fstat-val">
+              {s.highlighted === 'away'
+                ? <span className="fstat-pill" style={{ background: awayColor }}>{s.away}</span>
+                : <span>{s.away}</span>}
+            </span>
+          </div>
+        )
+      }
+
+      const statsCard = statGroups.length > 0 && (
+        <div className="mcard">
+          <div className="soccer-section-title">Match Stats</div>
+          {periodBtns.length > 1 && (
+            <div className="fstat-periods">
+              {periodBtns.map(k => (
+                <button
+                  key={k}
+                  className={`fstat-period ${activePeriod === k ? 'active' : ''}`}
+                  onClick={() => setStatPeriod(k)}
+                >
+                  {periodLabel[k]}
+                </button>
+              ))}
+            </div>
+          )}
+          {statGroups.map(g => (
+            <div key={g.key} className="fstat-group">
+              <div className="fstat-group-title">{g.title}</div>
+              {g.items.map(renderStat)}
+            </div>
+          ))}
+        </div>
+      )
+
+      // ---- Shot map ----
+      const splitCamel = (v) => (v ? v.replace(/([a-z])([A-Z])/g, '$1 $2') : v)
+      const resultLabel = (r) => ({ Goal: 'Goal', AttemptSaved: 'Saved', Miss: 'Miss', Post: 'Woodwork', Blocked: 'Blocked' }[r] || splitCamel(r))
+      const shots = detail.shotmap
+      let selShot = null
+      if (Array.isArray(shots) && shots.length) {
+        selShot = shots.find(s => s.id === selectedShot)
+          || [...shots].reverse().find(s => s.isGoal)
+          || shots[shots.length - 1]
+      }
+      const selIndex = selShot ? shots.findIndex(s => s.id === selShot.id) : -1
+      const goToShot = (delta) => {
+        if (selIndex < 0) return
+        setSelectedShot(shots[(selIndex + delta + shots.length) % shots.length].id)
+      }
+
+      const renderShotDot = (s) => {
+        const left = s.side === 'home' ? s.x : 100 - s.x
+        const color = s.side === 'home' ? homeColor : awayColor
+        const size = 9 + Math.sqrt(Math.max(0, s.xg || 0)) * 26
+        const isSel = selShot && s.id === selShot.id
+        return (
+          <button
+            key={s.id}
+            className={`shot-dot ${isSel ? 'sel' : ''}`}
+            style={{
+              left: `${left}%`,
+              top: `${s.y}%`,
+              width: `${size}px`,
+              height: `${size}px`,
+              background: s.isGoal ? color : 'transparent',
+              borderColor: color,
+            }}
+            onClick={() => setSelectedShot(s.id)}
+            title={`${s.player} ${s.min}' — ${resultLabel(s.result)}`}
+          />
+        )
+      }
+
+      const shotmapCard = Array.isArray(shots) && shots.length > 0 && (
+        <div className="mcard">
+          <div className="soccer-section-title">Shot map</div>
+          {selShot && (
+            <div className="shot-detail">
+              <div className="shot-detail-head">
+                <button className="shot-nav" onClick={() => goToShot(-1)}>‹</button>
+                <div className="shot-detail-player">
+                  {selShot.playerId && (
+                    <img
+                      src={`https://images.fotmob.com/image_resources/playerimages/${selShot.playerId}.png`}
+                      alt=""
+                      onError={(e) => { e.currentTarget.style.visibility = 'hidden' }}
+                    />
+                  )}
+                  <span>{selShot.player}</span>
+                </div>
+                <span className="shot-min">{selShot.min}'{selShot.minAdded ? `+${selShot.minAdded}` : ''}</span>
+                <button className="shot-nav" onClick={() => goToShot(1)}>›</button>
+              </div>
+              <div className="shot-detail-body">
+                <div className="shot-facts">
+                  <div><span>Shot type</span><span>{splitCamel(selShot.shotType) || '—'}</span></div>
+                  <div><span>Situation</span><span>{splitCamel(selShot.situation) || '—'}</span></div>
+                  <div><span>Result</span><span>{resultLabel(selShot.result) || '—'}</span></div>
+                </div>
+                <div className="shot-goal">
+                  <div className="goalframe">
+                    {selShot.onTarget && selShot.goalX != null && (
+                      <span
+                        className="goalframe-ball"
+                        style={{
+                          left: `${Math.min(96, Math.max(4, 8 + ((selShot.goalX - 0.2) / 1.6) * 84))}%`,
+                          top: `${Math.min(90, Math.max(6, 88 - Math.min(1, (selShot.goalZ || 0) / 2.44) * 70))}%`,
+                        }}
+                      />
+                    )}
+                  </div>
+                  <div className="shot-xg-row">
+                    <div><b>{selShot.xg != null ? selShot.xg.toFixed(2) : '—'}</b><span>xG</span></div>
+                    <div><b>{selShot.xgot ? selShot.xgot.toFixed(2) : '—'}</b><span>xGOT</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          <div className="shotmap-pitch">
+            <div className="pitch-halfway" />
+            <div className="pitch-center-circle" />
+            {shots.map(renderShotDot)}
+          </div>
+          <div className="shotmap-legend">
+            <span><i className="leg-goal" />Goal</span>
+            <span><i className="leg-attempt" />Attempt</span>
+            <span className="leg-note">Circle size = xG</span>
+          </div>
+        </div>
+      )
+
+      const momentumCard = hasMomentum && (
+        <div className="mcard">
+          <div className="soccer-section-title">Momentum</div>
+          {renderMomentum()}
+        </div>
+      )
+
+      const lineupsCard = (lineups.home || lineups.away) && (
+        <div className="mcard">
+          <div className="soccer-section-title">Lineups</div>
+          {renderCombinedPitch()}
+          <div className="soccer-lineup-lists">
+            {renderLineup(lineups.home, homeColor)}
+            {renderLineup(lineups.away, awayColor)}
+          </div>
+          {((lineups.home?.subs?.length || 0) + (lineups.away?.subs?.length || 0)) > 0 && (
+            <button className="subs-toggle" onClick={() => setShowSubs(s => !s)}>
+              <span>{showSubs ? 'Hide' : 'Show'} substitutes</span>
+              <span className={`subs-caret ${showSubs ? 'open' : ''}`}>▾</span>
+            </button>
+          )}
+        </div>
+      )
 
       return (
-        <div className="soccer-boxscore">
-          <div className="soccer-stats-header">
-            <span>{game.awayAbbreviation}</span>
-            <span></span>
-            <span>{game.homeAbbreviation}</span>
+        <div className="soccer-detail">
+          {renderHeader()}
+          <div className="soccer-cols">
+            <div className="soccer-col main">
+              {lineupsCard}
+              {shotmapCard}
+              {timeline.length > 0 && <div className="mcard">{renderTimeline()}</div>}
+            </div>
+            <div className="soccer-col side">
+              {momentumCard}
+              {statsCard}
+              {infoEl && <div className="mcard">{infoEl}</div>}
+            </div>
           </div>
-          {SOCCER_STATS.map(({ key, label }) => (
-            (awayStats[key] !== undefined || homeStats[key] !== undefined) && (
-              <div key={key} className="soccer-stat-row">
-                <span className="soccer-stat-value">{awayStats[key] ?? '-'}</span>
-                <span className="soccer-stat-label">{label}</span>
-                <span className="soccer-stat-value">{homeStats[key] ?? '-'}</span>
-              </div>
-            )
-          ))}
-          {renderLineup(awayRoster)}
-          {renderLineup(homeRoster)}
+          {!hasContent && <div className="info">No match data available yet.</div>}
         </div>
       )
     }
@@ -2155,17 +2582,21 @@ function GameSummary({ game, onBack, onOpenTeam }) {
   )
 
   return (
-    <div className="game-summary-container">
+    <div className={`game-summary-container${SOCCER_SPORT_KEYS.includes(game.sport) ? ' gsc-wide' : ''}`}>
       {isLoading && game.sport !== 'ufc' && <div className="info">Loading game summary...</div>}
       {error && game.sport !== 'ufc' && <div className="error">Error loading summary: {error}</div>}
 
       {(summaryData || game.sport === 'ufc') && (
-        <>
-          {gameState === 'preview' && renderHeader()}
-          {gameState === 'preview' && renderPreviewLayout()}
-          {gameState === 'live' && renderLiveLayout()}
-          {gameState === 'final' && renderFinalLayout()}
-        </>
+        SOCCER_SPORT_KEYS.includes(game.sport) ? (
+          <div className="game-summary-simple game-summary-soccer">{renderBoxScoreTab()}</div>
+        ) : (
+          <>
+            {gameState === 'preview' && renderHeader()}
+            {gameState === 'preview' && renderPreviewLayout()}
+            {gameState === 'live' && renderLiveLayout()}
+            {gameState === 'final' && renderFinalLayout()}
+          </>
+        )
       )}
     </div>
   )
