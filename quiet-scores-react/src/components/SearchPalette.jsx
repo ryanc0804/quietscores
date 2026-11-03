@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { searchEspn, SPORT_LABEL } from '../lib/players'
 import { usePersistentState } from '../hooks/usePersistentState'
 
@@ -26,10 +26,18 @@ function Avatar({ src, label, round }) {
   )
 }
 
-/** The header button that opens search; also shows the "/" shortcut. */
+/**
+ * The header button that opens search; also shows the "/" shortcut. Passes its
+ * on-screen box so the search panel can grow out of it.
+ */
 export function SearchButton({ onOpen }) {
   return (
-    <button type="button" className="search-trigger" onClick={onOpen} aria-label="Search teams and players">
+    <button
+      type="button"
+      className="search-trigger"
+      onClick={(e) => onOpen(e.currentTarget.getBoundingClientRect())}
+      aria-label="Search teams and players"
+    >
       <SearchIcon size={15} />
       <span className="search-trigger-label">Search</span>
       <kbd>/</kbd>
@@ -51,7 +59,7 @@ function highlight(text, query) {
   )
 }
 
-export function SearchPalette({ onClose, onOpenTeam, onOpenPlayer, favorites = [] }) {
+export function SearchPalette({ onClose, onOpenTeam, onOpenPlayer, favorites = [], origin = null }) {
   // Mounted only while open, so every open starts with fresh state.
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState('all')
@@ -61,6 +69,38 @@ export function SearchPalette({ onClose, onOpenTeam, onOpenPlayer, favorites = [
   const [recent, setRecent] = usePersistentState('qs:recent-search:v1', [])
   const inputRef = useRef(null)
   const listRef = useRef(null)
+  const dialogRef = useRef(null)
+
+  // Opened from the header button: grow the panel out of the button's box
+  // (from its spot and size to the panel's), then fade the contents in.
+  // Opened with "/" there's no box, so the CSS drop-in plays instead.
+  useLayoutEffect(() => {
+    const el = dialogRef.current
+    if (!origin || !el?.animate) return
+    let reduce = false
+    try {
+      reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    } catch {
+      /* assume motion is fine */
+    }
+    if (reduce) return
+    const to = el.getBoundingClientRect()
+    if (!to.width || !to.height) return
+    const dx = origin.left - to.left
+    const dy = origin.top - to.top
+    const sx = origin.width / to.width
+    const sy = origin.height / to.height
+    const anim = el.animate(
+      [
+        { transformOrigin: 'top left', transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`, opacity: 0.6 },
+        { transformOrigin: 'top left', transform: 'none', opacity: 1 },
+      ],
+      { duration: 280, easing: 'cubic-bezier(0.2, 0.85, 0.25, 1)' },
+    )
+    // Cancelled on cleanup so a re-run (React dev mode runs effects twice)
+    // measures the panel untransformed instead of mid-animation.
+    return () => anim.cancel()
+  }, [origin])
 
   useEffect(() => {
     inputRef.current?.focus()
@@ -166,7 +206,14 @@ export function SearchPalette({ onClose, onOpenTeam, onOpenPlayer, favorites = [
 
   return (
     <div className="sp-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="sp-dialog" role="dialog" aria-modal="true" aria-label="Search" onKeyDown={onKeyDown}>
+      <div
+        ref={dialogRef}
+        className={`sp-dialog ${origin ? 'from-button' : ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Search"
+        onKeyDown={onKeyDown}
+      >
         <div className="sp-input-row">
           <SearchIcon size={20} />
           <label className="visually-hidden" htmlFor="sp-input">Search teams and players</label>
@@ -237,6 +284,7 @@ export function SearchPalette({ onClose, onOpenTeam, onOpenPlayer, favorites = [
                     aria-selected={isActive}
                     data-active={isActive}
                     className={`sp-row ${isActive ? 'active' : ''}`}
+                    style={{ '--i': Math.min(i, 10) }}
                     onMouseMove={() => setActive(i)}
                     onClick={() => choose(item)}
                   >

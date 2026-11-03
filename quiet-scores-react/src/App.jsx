@@ -1994,6 +1994,8 @@ function App() {
   // Each entry is { type: 'game' | 'team' | 'player' | 'leaders', value }.
   const [viewStack, setViewStack] = useState([])
   const [searchOpen, setSearchOpen] = useState(false)
+  // The header button's box when search is opened from it (the panel grows out of it).
+  const [searchOrigin, setSearchOrigin] = useState(null)
   const topView = viewStack[viewStack.length - 1] || null
   const selectedGame = topView?.type === 'game' ? topView.value : null
   const selectedTeam = topView?.type === 'team' ? topView.value : null
@@ -2032,6 +2034,7 @@ function App() {
       const typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target?.isContentEditable
       if ((e.key === '/' && !typing && !e.metaKey && !e.ctrlKey && !e.altKey) || ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k')) {
         e.preventDefault()
+        setSearchOrigin(null)
         setSearchOpen(true)
       }
     }
@@ -2357,6 +2360,29 @@ function App() {
 
       {syncError && <div className="sync-error" role="alert">{syncError}</div>}
 
+      {!error && !isLoading && (liveCount > 0 || sortedScores.length > 0) && (
+        <div className="list-toolbar">
+          {liveCount > 0 && (
+            <button
+              type="button"
+              className={`live-games-indicator ${showLiveOnly ? 'active' : ''}`}
+              aria-pressed={showLiveOnly}
+              title={showLiveOnly ? 'Show all games' : 'Show only live games'}
+              onClick={() => setShowLiveOnly(!showLiveOnly)}
+            >
+              <span className="live-dot" aria-hidden="true" />
+              <span>Live</span>
+              <span className="count">{liveCount}</span>
+            </button>
+          )}
+          <span className="list-toolbar-count">
+            {showLiveOnly
+              ? `Showing ${sortedScores.length} live ${sortedScores.length === 1 ? 'game' : 'games'}`
+              : `${sortedScores.length} ${sortedScores.length === 1 ? 'game' : 'games'} ${viewingToday ? 'today' : `on ${currentDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`}`}
+          </span>
+        </div>
+      )}
+
       <div className="scores-container" id="scoresContainer">
         {error ? (
           <div className="error">Unable to load scores. Please try again.</div>
@@ -2413,18 +2439,6 @@ function App() {
 
         <div className="header-center">
           <div className="sport-filters">
-            <div
-              className={`live-games-indicator ${showLiveOnly ? 'active' : ''}`}
-              style={{ display: liveCount > 0 ? 'flex' : 'none', cursor: 'pointer' }}
-              onClick={() => {
-                setShowLiveOnly(!showLiveOnly)
-                if (viewStack.length) closeAllViews()
-              }}
-            >
-              <span>Live</span>
-              <span className="count">{liveCount}</span>
-            </div>
-            {liveCount > 0 && <div className="filter-divider"></div>}
             <button
               className={['sport-btn', 'fav-filter', selectedSport === 'favorites' ? 'active' : ''].filter(Boolean).join(' ')}
               onClick={() => handleSportClick('favorites')}
@@ -2450,7 +2464,12 @@ function App() {
         </div>
 
         <div className="header-right">
-          <SearchButton onOpen={() => setSearchOpen(true)} />
+          <SearchButton
+            onOpen={(rect) => {
+              setSearchOrigin(rect)
+              setSearchOpen(true)
+            }}
+          />
           <AccountButton themeMode={themeMode} onThemeChange={setThemeMode} />
         </div>
       </div>
@@ -2463,6 +2482,7 @@ function App() {
 
       {searchOpen && (
         <SearchPalette
+          origin={searchOrigin}
           onClose={() => setSearchOpen(false)}
           onOpenTeam={handleOpenTeamPage}
           onOpenPlayer={handleOpenPlayer}
