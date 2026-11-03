@@ -2325,6 +2325,7 @@ function App() {
           </span>
         </div>
 
+        <div className="week-row">
         <div className="week-buttons">
           <button className="week-nav-btn" onClick={handlePreviousWeek}>
             ◀
@@ -2347,6 +2348,23 @@ function App() {
           <button className="week-nav-btn" onClick={handleNextWeek}>
             ▶
           </button>
+        </div>
+          {liveCount > 0 && (
+            <button
+              type="button"
+              className={`live-games-indicator ${showLiveOnly ? 'active' : ''}`}
+              aria-pressed={showLiveOnly}
+              title={showLiveOnly ? 'Show all games' : 'Show only live games'}
+              onClick={() => {
+                setShowLiveOnly(!showLiveOnly)
+                if (viewStack.length) closeAllViews()
+              }}
+            >
+              <span className="live-dot" aria-hidden="true" />
+              <span>Live</span>
+              <span className="count">{liveCount}</span>
+            </button>
+          )}
         </div>
 
       </div>
@@ -2413,18 +2431,6 @@ function App() {
 
         <div className="header-center">
           <div className="sport-filters">
-            <div
-              className={`live-games-indicator ${showLiveOnly ? 'active' : ''}`}
-              style={{ display: liveCount > 0 ? 'flex' : 'none', cursor: 'pointer' }}
-              onClick={() => {
-                setShowLiveOnly(!showLiveOnly)
-                if (viewStack.length) closeAllViews()
-              }}
-            >
-              <span>Live</span>
-              <span className="count">{liveCount}</span>
-            </div>
-            {liveCount > 0 && <div className="filter-divider"></div>}
             <button
               className={['sport-btn', 'fav-filter', selectedSport === 'favorites' ? 'active' : ''].filter(Boolean).join(' ')}
               onClick={() => handleSportClick('favorites')}
