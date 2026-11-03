@@ -24,20 +24,16 @@ keeps each user's favorites private.
 
 ## 3. Redirect URLs
 **Authentication → URL Configuration**
-- *Site URL*: `https://nfl-website-six.vercel.app`
-- *Redirect URLs*: add `http://localhost:5173/**` and `https://nfl-website-six.vercel.app/**`
-  (plus `https://*-ryanc0804.vercel.app/**` if you want preview deployments to work).
+- *Site URL*: `https://www.quietscores.com`
+- *Redirect URLs*: `https://www.quietscores.com/**`, `https://quietscores.com/**`,
+  `https://sportsdashboard.vercel.app/**` and `http://localhost:5173/**`.
 
-Email-link sign-in, sign-up confirmation and password reset all send people back to these URLs.
+Sign-up confirmation and password-reset emails send people back to these URLs.
 
-## 4. Sign-in methods
-**Authentication → Providers**
-- **Email**: on by default. This covers email + password *and* email links.
-  "Confirm email" is on by default; new users must click the link before signing in.
-- **Google**:
-  1. In Google Cloud Console → APIs & Services → Credentials → *Create OAuth client ID* (Web application).
-  2. Authorized redirect URI: `https://YOUR-REF.supabase.co/auth/v1/callback`
-  3. Paste the client ID and secret into Supabase → Providers → Google → enable.
+## 4. Sign-in method
+Accounts are **email + password only**. **Authentication → Providers → Email** is on by
+default; leave "Confirm email" on so new users verify their address before signing in.
+No other providers need to be enabled.
 
 ## 5. Email delivery (before launch)
 Supabase's built-in email sender is rate-limited (a few emails per hour) and meant

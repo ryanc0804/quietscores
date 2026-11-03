@@ -3,7 +3,7 @@ import { isAuthConfigured, supabase } from '../lib/supabase'
 
 const AuthContext = createContext(null)
 
-// Where Supabase sends people back after an email link or Google sign-in.
+// Where Supabase sends people back after confirming an email or resetting a password.
 function redirectUrl() {
   return `${window.location.origin}/`
 }
@@ -15,7 +15,6 @@ function friendlyError(error) {
   if (/user already registered/i.test(msg)) return 'An account with that email already exists. Try signing in.'
   if (/password should be at least/i.test(msg)) return 'Password must be at least 6 characters.'
   if (/rate limit|too many/i.test(msg)) return 'Too many attempts. Wait a minute and try again.'
-  if (/provider is not enabled/i.test(msg)) return 'Google sign-in isn’t set up yet.'
   return msg || 'Something went wrong. Please try again.'
 }
 
@@ -68,10 +67,6 @@ export function AuthProvider({ children }) {
       signIn: (email, password) => run(() => supabase.auth.signInWithPassword({ email, password })),
       signUp: (email, password) =>
         run(() => supabase.auth.signUp({ email, password, options: { emailRedirectTo: redirectUrl() } })),
-      sendMagicLink: (email) =>
-        run(() => supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: redirectUrl() } })),
-      signInWithGoogle: () =>
-        run(() => supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: redirectUrl() } })),
       resetPassword: (email) => run(() => supabase.auth.resetPasswordForEmail(email, { redirectTo: redirectUrl() })),
       updatePassword: async (password) => {
         const res = await run(() => supabase.auth.updateUser({ password }))
