@@ -334,8 +334,6 @@
     transition: border-color 0.15s ease, transform 0.15s ease;
 }
 .pp-tile.clickable:hover, .pp-tile.clickable:focus-visible { border-color: var(--accent-primary); transform: translateY(-1px); }
-.pp-tile-more { display: block; margin-top: 6px; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); }
-.pp-tile.clickable:hover .pp-tile-more { color: var(--accent-primary); }
 
 /* League leaderboard dialog */
 .lb-backdrop {

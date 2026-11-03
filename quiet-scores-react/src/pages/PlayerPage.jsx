@@ -180,7 +180,6 @@ export function PlayerPage({ player: ref, onBack, onOpenTeam, onOpenPlayer }) {
                         aria-label={`${t.label} ${t.value}${t.rank ? `, ${t.rank} in league` : ''}. Show league leaderboard`}
                       >
                         {body}
-                        <span className="pp-tile-more">See leaderboard →</span>
                       </button>
                     ) : (
                       <div key={t.key} className="pg-card pp-tile">{body}</div>
