@@ -125,6 +125,9 @@ function normalizePlayer(sport, a, overview, gamelog) {
     label: s.displayName || s.shortDisplayName || s.abbreviation,
     value: s.displayValue,
     rank: s.rankDisplayValue && !/^tied/i.test(s.rankDisplayValue) && s.rank && s.rank <= 50 ? s.rankDisplayValue : null,
+    // Unfiltered rank, for the leaderboard's "where you are" row.
+    rankFull: s.rankDisplayValue || null,
+    rankNumber: s.rank || null,
   }))
 
   // Splits table (Regular season / Last N / Career …)
@@ -197,11 +200,50 @@ function normalizePlayer(sport, a, overview, gamelog) {
     team,
     bio,
     seasonLabel: summary?.displayName || null,
-    tiles,
+    tiles: sport === 'nfl' ? withPace(tiles, st, log) : tiles,
     splits,
     log,
     nextGame,
   }
+}
+
+// Pace is hidden until a few games in; a big Week 1 shouldn't read as a 3,400-yard pace.
+const PACE_MIN_GAMES = 4
+// Which split column each NFL tile reads, so "YDS" picks receiving vs rushing correctly.
+const PACE_LABEL = {
+  receptions: 'REC',
+  receivingYards: 'YDS',
+  receivingTouchdowns: 'TD',
+  passingYards: 'YDS',
+  passingTouchdowns: 'TD',
+  interceptions: 'INT',
+  rushingYards: 'YDS',
+  rushingTouchdowns: 'TD',
+  totalTackles: 'TOT',
+  soloTackles: 'SOLO',
+  sacks: 'SACK',
+  fumblesForced: 'FF',
+  passesDefended: 'PD',
+}
+
+/**
+ * NFL "on pace for" values. ESPN's overview has a Projected split (season
+ * total ÷ games played × 17); each counting-stat tile takes the column whose
+ * label matches and whose season value equals the tile's. Rate stats (AVG,
+ * CMP%) are identical in both rows, so they never get a pace.
+ */
+function withPace(tiles, st, log) {
+  const season = st?.splits?.find((s) => s.displayName === 'Regular Season')
+  const projected = st?.splits?.find((s) => s.displayName === 'Projected')
+  const games = log?.rows?.length ?? 0
+  if (!season || !projected || games < PACE_MIN_GAMES) return tiles
+  return tiles.map((t) => {
+    const label = PACE_LABEL[t.key]
+    if (!label) return t
+    const i = st.labels.findIndex((l, n) => l === label && season.stats[n] === t.value)
+    const pace = i >= 0 ? projected.stats[i] : null
+    return pace && pace !== t.value ? { ...t, pace } : t
+  })
 }
 
 // Which game-log column to chart, per sport (first label found wins).

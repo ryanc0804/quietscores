@@ -9,6 +9,7 @@ import { AuthModal, AccountButton } from './components/AuthModal'
 import { useAuth } from './hooks/useAuth'
 import { TeamPage } from './pages/TeamPage'
 import { PlayerPage } from './pages/PlayerPage'
+import { LeaderboardPage } from './pages/LeaderboardPage'
 import { SearchButton, SearchPalette } from './components/SearchPalette'
 import {
   Section,
@@ -1977,31 +1978,6 @@ function GameSummary({ game, onBack, onOpenTeam }) {
   )
 }
 
-function ThemeIcon({ mode }) {
-  const common = { width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true }
-  if (mode === 'light') {
-    return (
-      <svg {...common}>
-        <circle cx="12" cy="12" r="4" />
-        <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
-      </svg>
-    )
-  }
-  if (mode === 'dark') {
-    return (
-      <svg {...common}>
-        <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
-      </svg>
-    )
-  }
-  return (
-    <svg {...common}>
-      <rect x="3" y="4" width="18" height="12" rx="2" />
-      <path d="M8 20h8M12 16v4" />
-    </svg>
-  )
-}
-
 function App() {
   const today = useMemo(() => stripTime(new Date()), [])
   const baseMonday = useMemo(() => getMonday(today), [today])
@@ -2013,19 +1989,20 @@ function App() {
   const [selectedSport, setSelectedSport] = useState('all')
   // Navigation: a stack of detail views over the scores list, mirrored in
   // browser history so the phone/browser back button walks back through it.
-  // Each entry is { type: 'game' | 'team' | 'player', value }.
+  // Each entry is { type: 'game' | 'team' | 'player' | 'leaders', value }.
   const [viewStack, setViewStack] = useState([])
   const [searchOpen, setSearchOpen] = useState(false)
   const topView = viewStack[viewStack.length - 1] || null
   const selectedGame = topView?.type === 'game' ? topView.value : null
   const selectedTeam = topView?.type === 'team' ? topView.value : null
   const selectedPlayer = topView?.type === 'player' ? topView.value : null
+  const selectedLeaders = topView?.type === 'leaders' ? topView.value : null
   const [showLiveOnly, setShowLiveOnly] = useState(false)
 
   const { scores, isLoading, error } = useScores(currentDate)
   const { favorites, isFavorite, toggleFavorite, gameHasFavorite, syncError, needsLogin } = useFavorites()
   const { openLogin } = useAuth()
-  const { mode: themeMode, cycle: cycleTheme } = useTheme()
+  const { mode: themeMode, setMode: setThemeMode } = useTheme()
   const listScrollRef = useRef(0)
 
   // The selected game is a snapshot; swap in the freshest copy from the
@@ -2151,6 +2128,13 @@ function App() {
   const handleOpenGameSummary = (game) => pushView('game', game)
   const handleOpenTeamPage = (teamInfo) => pushView('team', teamInfo)
   const handleOpenPlayer = (playerRef) => pushView('player', playerRef)
+  const handleOpenLeaderboard = (view) => pushView('leaders', view)
+  // Switching stat tabs swaps the board in place, so Back still returns to the player.
+  const handleChangeLeaderboard = (board) =>
+    setViewStack((stack) => {
+      const top = stack[stack.length - 1]
+      return top?.type === 'leaders' ? [...stack.slice(0, -1), { type: 'leaders', value: { ...top.value, board } }] : stack
+    })
 
   // In-app back buttons mirror the browser back button.
   const handleBack = () => {
@@ -2265,12 +2249,21 @@ function App() {
         : 'No games scheduled for this date.'
 
   // Show team page > game summary > score list (priority order)
-  const mainContent = selectedPlayer ? (
+  const mainContent = selectedLeaders ? (
+    <LeaderboardPage
+      key={`${selectedLeaders.board.sport}-${selectedLeaders.board.category}`}
+      view={selectedLeaders}
+      onBack={handleBack}
+      onOpenPlayer={handleOpenPlayer}
+      onChangeBoard={handleChangeLeaderboard}
+    />
+  ) : selectedPlayer ? (
     <PlayerPage
       key={`${selectedPlayer.sport}-${selectedPlayer.athleteId}`}
       player={selectedPlayer}
       onBack={handleBack}
       onOpenTeam={handleOpenTeamPage}
+      onOpenLeaderboard={handleOpenLeaderboard}
     />
   ) : selectedTeam ? (
     <TeamPage
@@ -2413,10 +2406,11 @@ function App() {
             <button
               className={['sport-btn', 'fav-filter', selectedSport === 'favorites' ? 'active' : ''].filter(Boolean).join(' ')}
               onClick={() => handleSportClick('favorites')}
-              aria-label="Show favorite teams"
+              aria-label="Favorites"
+              aria-pressed={selectedSport === 'favorites'}
               title="Favorites"
             >
-              ★<span className="fav-filter-label"> Favorites</span>
+              {selectedSport === 'favorites' ? '★' : '☆'}
             </button>
             {SPORT_BUTTONS.map((button) => (
               <button
@@ -2435,16 +2429,7 @@ function App() {
 
         <div className="header-right">
           <SearchButton onOpen={() => setSearchOpen(true)} />
-          <AccountButton />
-          <button
-            type="button"
-            className="theme-toggle"
-            onClick={cycleTheme}
-            aria-label={`Theme: ${themeMode}. Click to change.`}
-            title={`Theme: ${themeMode}`}
-          >
-            <ThemeIcon mode={themeMode} />
-          </button>
+          <AccountButton themeMode={themeMode} onThemeChange={setThemeMode} />
         </div>
       </div>
 
