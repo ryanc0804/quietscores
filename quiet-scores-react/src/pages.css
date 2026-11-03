@@ -406,3 +406,4 @@
 }
 .lb-jump:hover { text-decoration: underline; }
 .pp-career-subtotal td { color: var(--text-secondary); font-style: italic; }
+.pp-tile-pace { margin-top: 2px; font-size: 0.72rem; font-weight: 600; font-style: italic; color: var(--text-muted); }

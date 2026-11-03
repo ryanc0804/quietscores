@@ -223,6 +223,7 @@ export function PlayerPage({ player: ref, onBack, onOpenTeam, onOpenLeaderboard 
                         ) : (
                           t.rank && <div className="pp-tile-rank">{t.rank} in league</div>
                         )}
+                        {t.pace && <div className="pp-tile-pace" title={`On pace for ${t.pace} over 17 games (season total ÷ games played × 17)`}>Pace {t.pace}</div>}
                       </>
                     )
                     return board ? (
