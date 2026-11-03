@@ -266,7 +266,11 @@ export function PlayerPage({ player: ref, onBack, onOpenTeam, onOpenLeaderboard 
             {advanced && (
               <section>
                 <h2 className="pg-section-title">
-                  Advanced <span className="pp-adv-source">via {advanced.source}</span>
+                  Advanced{' '}
+                  <span className="pp-adv-source">
+                    via {advanced.source}
+                    {advanced.updated && ` · updated ${new Date(advanced.updated.replace(/ E[SD]T$/, '').replace(' ', 'T')).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
+                  </span>
                 </h2>
                 <div className="pp-tiles">
                   {advanced.tiles.map((t) => {

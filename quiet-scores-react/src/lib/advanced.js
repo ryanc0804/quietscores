@@ -356,29 +356,167 @@ async function nflAdvanced(player, year) {
   return tiles.length ? { tiles, source: 'ESPN' } : null
 }
 
+/* ------------------------------------------------------- NFL (nflverse) */
+
+// Season stats from nflverse via our /api/nflverse function (see api/), which
+// adds ESPN ids so rows open the right player. ESPN's QBR feed adds QBR and
+// points added for quarterbacks. If /api/nflverse is unavailable, the NFL
+// section falls back to the ESPN-only tiles above.
+const nflverse = (year) =>
+  cached(`nflverse:${year}`, async () => {
+    const d = await getJson(`/api/nflverse?season=${year}`)
+    if (!Array.isArray(d.players)) throw new Error('No nflverse data')
+    // Per-team games played (capped at 17) sets each player's qualifying bar.
+    const teamGames = new Map()
+    for (const p of d.players) teamGames.set(p.team, Math.min(17, Math.max(teamGames.get(p.team) || 0, p.games || 0)))
+    return { updated: d.updated, players: d.players.map((p) => ({ ...p, teamGames: teamGames.get(p.team) || p.games || 1 })) }
+  })
+
+const per = (a, b) => (b > 0 ? a / b : NaN)
+const signed2 = (v) => (Number.isFinite(v) ? `${v > 0 ? '+' : ''}${v.toFixed(2)}` : '–')
+const signed1 = (v) => (Number.isFinite(v) ? `${v > 0 ? '+' : ''}${v.toFixed(1)}` : '–')
+const pctOf = (v) => (Number.isFinite(v) ? `${(100 * v).toFixed(1)}%` : '–') // 0.234 → 23.4%
+
+const dropbacks = (p) => (p.attempts || 0) + (p.sacks_suffered || 0)
+const passers = (p) => p.attempts >= 14 * p.teamGames
+const targeted = (p) => p.targets >= 3 * p.teamGames
+// Rushing boards compare running backs; QB scrambles and sneaks are a different kind of run.
+const rushers = (p) => (p.position === 'RB' || p.position === 'FB') && p.carries >= 6.25 * p.teamGames
+
+// group = leaderboard tab group; pool = who qualifies for the ranking.
+const NFLV_STATS = {
+  epaDb: { group: 'passing', label: 'EPA / dropback', name: 'EPA per Dropback', desc: 'Expected points added per pass attempt or sack: how much each dropback moved the scoreboard odds.', pool: passers, calc: (p) => per(p.passing_epa, dropbacks(p)), fmt: signed2 },
+  cpoe: { group: 'passing', label: 'CPOE', name: 'Completion % Over Expected', desc: 'Completion percentage above what an average QB would hit on the same throws (depth, coverage, pressure).', pool: passers, calc: (p) => p.passing_cpoe, fmt: signed1 },
+  ayPerAtt: { group: 'passing', label: 'Air yards / att', name: 'Intended Air Yards per Attempt', desc: 'How far downfield the average pass travels, caught or not.', pool: passers, calc: (p) => per(p.passing_air_yards, p.attempts), fmt: fixed(1) },
+  pacr: { group: 'passing', label: 'PACR', name: 'Passing Air Conversion Ratio', desc: 'Passing yards per air yard thrown; above 1 means receivers add yards after the catch.', pool: passers, calc: (p) => p.pacr, fmt: fixed(2) },
+  anyA: {
+    group: 'passing', label: 'ANY/A', name: 'Adjusted Net Yards per Attempt',
+    desc: 'Passing yards plus 20 per TD minus 45 per INT, less sack yards, per dropback.', pool: passers,
+    calc: (p) => per(p.passing_yards + 20 * p.passing_tds - 45 * p.passing_interceptions - Math.abs(p.sack_yards_lost || 0), dropbacks(p)),
+    fmt: fixed(2),
+  },
+  targetShare: { group: 'receiving', label: 'Target share', name: 'Target Share', desc: 'Share of the team’s targets that went to this player.', pool: targeted, calc: (p) => p.target_share, fmt: pctOf },
+  airShare: { group: 'receiving', label: 'Air yards share', name: 'Air Yards Share', desc: 'Share of the team’s passing air yards thrown at this player.', pool: targeted, calc: (p) => p.air_yards_share, fmt: pctOf },
+  wopr: { group: 'receiving', label: 'WOPR', name: 'Weighted Opportunity Rating', desc: 'Target share and air yards share combined (1.5 × target share + 0.7 × air yards share): how much of the passing game runs through a player.', pool: targeted, calc: (p) => p.wopr, fmt: fixed(2) },
+  adot: { group: 'receiving', label: 'aDOT', name: 'Average Depth of Target', desc: 'Average air yards per target: how far downfield a player is being thrown to.', pool: targeted, calc: (p) => per(p.receiving_air_yards, p.targets), fmt: fixed(1) },
+  racr: { group: 'receiving', label: 'RACR', name: 'Receiver Air Conversion Ratio', desc: 'Receiving yards per air yard targeted; high means efficient after the catch or on short throws.', pool: targeted, calc: (p) => p.racr, fmt: fixed(2) },
+  epaTgt: { group: 'receiving', label: 'EPA / target', name: 'Receiving EPA per Target', desc: 'Expected points added per target.', pool: targeted, calc: (p) => per(p.receiving_epa, p.targets), fmt: signed2 },
+  yacRec: { group: 'receiving', label: 'YAC / catch', name: 'Yards After Catch per Reception', desc: 'Yards gained after the catch, per reception.', pool: targeted, calc: (p) => per(p.receiving_yards_after_catch, p.receptions), fmt: fixed(1) },
+  epaCarry: { group: 'rushing', label: 'EPA / carry', name: 'Rushing EPA per Carry', desc: 'Expected points added per rush; most backs are below zero, so anything positive is strong.', pool: rushers, calc: (p) => per(p.rushing_epa, p.carries), fmt: signed2 },
+  rushFd: { group: 'rushing', label: '1st down %', name: 'Rushing First Down Rate', desc: 'Share of carries that gained a first down.', pool: rushers, calc: (p) => 100 * per(p.rushing_first_downs, p.carries), fmt: pct1 },
+  ypc: { group: 'rushing', label: 'Yds / carry', name: 'Yards per Carry', desc: 'Rushing yards per carry.', pool: rushers, calc: (p) => per(p.rushing_yards, p.carries), fmt: fixed(1) },
+}
+
+const NFLV_LAYOUT = {
+  QB: ['epaDb', 'cpoe', 'ayPerAtt', 'pacr', 'anyA'],
+  receiver: ['targetShare', 'airShare', 'wopr', 'adot', 'racr', 'epaTgt', 'yacRec'],
+  RB: ['epaCarry', 'rushFd', 'targetShare', 'epaTgt', 'yacRec'],
+}
+
+async function nflverseRows(board) {
+  const def = NFLV_STATS[board.stat]
+  const { players } = await nflverse(board.year)
+  const rows = players.filter(def.pool).map((p) => ({
+    athleteId: p.espnId,
+    name: p.name,
+    team: p.team,
+    position: p.position,
+    headshot: p.headshot,
+    raw: def.calc(p),
+  }))
+  return ranked(rows, def.asc).map((r) => ({ ...r, value: def.fmt(r.raw) }))
+}
+
+// ESPN's QBR feed (qualified QBs): QBR and points added, with ESPN athlete ids.
+const QBR_STATS = {
+  qbr: { label: 'QBR', name: 'ESPN Total QBR', desc: 'ESPN’s 0–100 rating of a QB’s contribution to winning on every play: passes, runs, sacks, penalties.', field: 'qbr', fmt: fixed(1) },
+  qbpaa: { label: 'Points added', name: 'Points Added Above Average', desc: 'Points the QB contributed beyond an average QB on the same plays (ESPN).', field: 'qbpaa', fmt: signed1 },
+}
+const qbrList = (year) =>
+  cached(`qbr:${year}`, async () => {
+    const d = await getJson(`${ESPN_CORE}/seasons/${year}/types/2/groups/9/qbr/0?limit=100`)
+    return (d.items || []).map((it) => {
+      const stats = Object.fromEntries((it.splits?.categories?.[0]?.stats || []).map((s) => [s.name, s.value]))
+      return { athleteId: /athletes\/(\d+)/.exec(it.athlete?.$ref || '')?.[1] || null, stats }
+    })
+  })
+
+async function qbrRows(board) {
+  const def = QBR_STATS[board.stat]
+  const [list, nv] = await Promise.all([qbrList(board.year), nflverse(board.year).catch(() => null)])
+  const info = new Map((nv?.players || []).map((p) => [p.espnId, p]))
+  const rows = list.map((r) => {
+    const p = info.get(r.athleteId)
+    return { athleteId: r.athleteId, name: p?.name || 'Unknown player', team: p?.team || null, position: 'QB', headshot: p?.headshot || null, raw: num(r.stats[def.field]) }
+  })
+  return ranked(rows, false).map((r) => ({ ...r, value: def.fmt(r.raw) }))
+}
+
+async function nflverseAdvanced(player, year) {
+  const role = nflRole(player.positionAbbr)
+  if (!role || role === 'defense') return null
+  const { updated, players } = await nflverse(year)
+  const me = players.find((p) => p.espnId === String(player.id))
+  if (!me) return null
+  const mine = (r) => r.athleteId === String(player.id)
+  const tiles = []
+  for (const key of NFLV_LAYOUT[role]) {
+    const def = NFLV_STATS[key]
+    const raw = def.calc(me)
+    if (!Number.isFinite(raw)) continue
+    const board = { sport: 'nfl', kind: 'nflverse', group: def.group, stat: key, label: def.name, abbreviation: def.label, description: def.desc, year }
+    const rank = rankText(await nflverseRows(board), mine)
+    tiles.push({ key, label: def.label, value: def.fmt(raw), desc: def.desc, board, rank, reason: rank ? null : 'Not qualified' })
+  }
+  if (role === 'QB') {
+    const list = await qbrList(year).catch(() => [])
+    const row = list.find(mine)
+    for (const [key, def] of Object.entries(QBR_STATS)) {
+      const raw = num(row?.stats?.[def.field])
+      if (!Number.isFinite(raw)) continue
+      const board = { sport: 'nfl', kind: 'qbr', group: 'qbr', stat: key, label: def.name, abbreviation: def.label, description: def.desc, year }
+      const rank = rankText(await qbrRows(board), mine)
+      tiles.push({ key, label: def.label, value: def.fmt(raw), desc: def.desc, board, rank, reason: rank ? null : 'Not qualified' })
+    }
+  }
+  return tiles.length ? { tiles, source: role === 'QB' ? 'nflverse · ESPN QBR' : 'nflverse', updated } : null
+}
+
 /* -------------------------------------------------------------- public */
 
-/** { tiles: [{ key, label, value, desc?, board? }], source, mlbId? } or null. */
+/** { tiles: [{ key, label, value, desc?, board? }], source, updated?, mlbId? } or null. */
 export async function fetchAdvanced(player, year) {
   if (player.sport === 'mlb') return mlbAdvanced(player, year)
-  if (player.sport === 'nfl') return nflAdvanced(player, year)
+  if (player.sport === 'nfl') {
+    // Real advanced stats from nflverse; ESPN-only tiles if nflverse is
+    // unavailable or doesn't have the player. Defenders get no section:
+    // nflverse has no advanced defensive stats.
+    const role = nflRole(player.positionAbbr)
+    if (!role || role === 'defense') return null
+    return (await nflverseAdvanced(player, year).catch(() => null)) || nflAdvanced(player, year)
+  }
   return null
 }
 
 /** Leaderboard rows for an advanced board (same shape as leaders.js). */
 export async function fetchAdvancedLeaderboard(board, { limit = 50 } = {}) {
-  const all = board.kind === 'mlb' ? await mlbBoardRows(board) : await nflDerivedRows(board)
+  const all =
+    board.kind === 'mlb' ? await mlbBoardRows(board)
+      : board.kind === 'nflverse' ? await nflverseRows(board)
+        : board.kind === 'qbr' ? await qbrRows(board)
+          : await nflDerivedRows(board)
   return { rows: all.slice(0, limit), total: all.length, qualified: true, all }
 }
 
 /** The other advanced boards in the same group, for the stat tabs. */
 export function advancedSiblings(board) {
-  if (board.kind === 'mlb') {
-    return MLB_STATS[board.group].map((d) => ({ ...board, stat: d.key, label: d.name, abbreviation: d.label, description: d.desc }))
-  }
+  const as = (k, d) => ({ ...board, stat: k, label: d.name, abbreviation: d.label, description: d.desc })
+  if (board.kind === 'mlb') return MLB_STATS[board.group].map((d) => as(d.key, d))
+  if (board.kind === 'nflverse') return Object.entries(NFLV_STATS).filter(([, d]) => d.group === board.group).map(([k, d]) => as(k, d))
+  if (board.kind === 'qbr') return Object.entries(QBR_STATS).map(([k, d]) => as(k, d))
   return Object.entries(NFL_DERIVED)
     .filter(([, d]) => d.cat === board.group)
-    .map(([k, d]) => ({ ...board, stat: k, label: d.name, abbreviation: d.label, description: d.desc }))
+    .map(([k, d]) => as(k, d))
 }
 
-export const isAdvancedBoard = (b) => b?.kind === 'mlb' || b?.kind === 'nfl-derived'
+export const isAdvancedBoard = (b) => ['mlb', 'nfl-derived', 'nflverse', 'qbr'].includes(b?.kind)
