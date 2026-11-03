@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { fetchPlayer, trendFor, SPORT_LABEL } from '../lib/players'
 import { heroColors } from './heroColor'
 import { SummarySkeleton } from '../components/Skeletons'
+import { LeaderboardModal } from '../components/LeaderboardModal'
+import { leaderboardFor } from '../lib/leaders'
 
 function Headshot({ src, name }) {
   const [failed, setFailed] = useState(false)
@@ -46,10 +48,12 @@ function TrendChart({ trend }) {
   )
 }
 
-export function PlayerPage({ player: ref, onBack, onOpenTeam }) {
+export function PlayerPage({ player: ref, onBack, onOpenTeam, onOpenPlayer }) {
   const [player, setPlayer] = useState(null)
   const [error, setError] = useState(null)
   const [showAllGames, setShowAllGames] = useState(false)
+  const [boards, setBoards] = useState({}) // tile key → leaderboard, for tiles that have one
+  const [openTile, setOpenTile] = useState(null)
 
   useEffect(() => {
     // The page is keyed per player in App, so state starts fresh for each one.
@@ -61,6 +65,24 @@ export function PlayerPage({ player: ref, onBack, onOpenTeam }) {
       })
     return () => controller.abort()
   }, [ref.sport, ref.athleteId])
+
+  // Work out which tiles can open a league leaderboard (not every sport or stat has one).
+  useEffect(() => {
+    if (!player?.tiles.length) return
+    let cancelled = false
+    Promise.all(
+      player.tiles.map((t) =>
+        leaderboardFor(player.sport, t.key, player.positionAbbr)
+          .then((b) => [t.key, b])
+          .catch(() => [t.key, null]),
+      ),
+    ).then((pairs) => {
+      if (!cancelled) setBoards(Object.fromEntries(pairs.filter(([, b]) => b)))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [player])
 
   const trend = useMemo(() => trendFor(player), [player])
   const colors = heroColors(player?.team?.color)
@@ -141,13 +163,29 @@ export function PlayerPage({ player: ref, onBack, onOpenTeam }) {
               <section>
                 <h2 className="pg-section-title">{player.seasonLabel || 'This season'}</h2>
                 <div className="pp-tiles">
-                  {player.tiles.map((t) => (
-                    <div key={t.key} className="pg-card pp-tile">
-                      <div className="pp-tile-label">{t.label}</div>
-                      <div className="pp-tile-value">{t.value}</div>
-                      {t.rank && <div className="pp-tile-rank">{t.rank} in league</div>}
-                    </div>
-                  ))}
+                  {player.tiles.map((t) => {
+                    const body = (
+                      <>
+                        <div className="pp-tile-label">{t.label}</div>
+                        <div className="pp-tile-value">{t.value}</div>
+                        {t.rank && <div className="pp-tile-rank">{t.rank} in league</div>}
+                      </>
+                    )
+                    return boards[t.key] ? (
+                      <button
+                        key={t.key}
+                        type="button"
+                        className="pg-card pp-tile clickable"
+                        onClick={() => setOpenTile(t)}
+                        aria-label={`${t.label} ${t.value}${t.rank ? `, ${t.rank} in league` : ''}. Show league leaderboard`}
+                      >
+                        {body}
+                        <span className="pp-tile-more">See leaderboard →</span>
+                      </button>
+                    ) : (
+                      <div key={t.key} className="pg-card pp-tile">{body}</div>
+                    )
+                  })}
                 </div>
               </section>
             )}
@@ -221,6 +259,18 @@ export function PlayerPage({ player: ref, onBack, onOpenTeam }) {
               <div className="info">No stats yet this season.</div>
             )}
           </main>
+          {openTile && boards[openTile.key] && (
+            <LeaderboardModal
+              board={boards[openTile.key]}
+              player={{ ...player, headshot: player.headshot || ref.headshot }}
+              playerTile={openTile}
+              onClose={() => setOpenTile(null)}
+              onOpenPlayer={(p) => {
+                setOpenTile(null)
+                onOpenPlayer?.(p)
+              }}
+            />
+          )}
         </>
       )}
     </div>

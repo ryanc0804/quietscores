@@ -125,6 +125,9 @@ function normalizePlayer(sport, a, overview, gamelog) {
     label: s.displayName || s.shortDisplayName || s.abbreviation,
     value: s.displayValue,
     rank: s.rankDisplayValue && !/^tied/i.test(s.rankDisplayValue) && s.rank && s.rank <= 50 ? s.rankDisplayValue : null,
+    // Unfiltered rank, for the leaderboard's "where you are" row.
+    rankFull: s.rankDisplayValue || null,
+    rankNumber: s.rank || null,
   }))
 
   // Splits table (Regular season / Last N / Career …)

@@ -2271,6 +2271,7 @@ function App() {
       player={selectedPlayer}
       onBack={handleBack}
       onOpenTeam={handleOpenTeamPage}
+      onOpenPlayer={handleOpenPlayer}
     />
   ) : selectedTeam ? (
     <TeamPage
