@@ -407,3 +407,11 @@
 .lb-jump:hover { text-decoration: underline; }
 .pp-career-subtotal td { color: var(--text-secondary); font-style: italic; }
 .pp-tile-pace { margin-top: 2px; font-size: 0.72rem; font-weight: 600; font-style: italic; color: var(--text-muted); }
+/* Last game: the final box in the bio row, same look as its neighbours. */
+.pp-bio-game dd { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.pp-bio-game dd img { width: 18px; height: 18px; object-fit: contain; }
+.pp-bio-game dd .win { color: #7ee2a8; }
+.pp-bio-game dd .loss { color: #ff9a9d; }
+.pp-bio-game small { display: block; margin-top: 2px; font-size: 0.74rem; font-weight: 600; color: rgba(255, 255, 255, 0.75); }
+.pp-bio-game dt.live { color: #fff; }
+.pp-bio-game dt.live::before { content: '●'; margin-right: 5px; color: #ff5a5f; }

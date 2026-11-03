@@ -4,6 +4,7 @@ import { heroColors } from './heroColor'
 import { SummarySkeleton } from '../components/Skeletons'
 import { findRank, formatRank, leaderboardFor } from '../lib/leaders'
 import { fetchCareer } from '../lib/career'
+import { PlayerLastGame } from '../components/PlayerLastGame'
 
 function Headshot({ src, name }) {
   const [failed, setFailed] = useState(false)
@@ -180,19 +181,8 @@ export function PlayerPage({ player: ref, onBack, onOpenTeam, onOpenLeaderboard 
                     {(player.injury || player.status) && <span className="pg-badge-out">{player.injury || player.status}</span>}
                   </div>
                 </div>
-                {player.nextGame && (
-                  <div className="pg-next">
-                    <span className="pg-next-label">{player.nextGame.label}</span>
-                    <span className="pg-next-name">{player.nextGame.name}</span>
-                    {player.nextGame.date && (
-                      <span className="pg-next-when">
-                        {new Date(player.nextGame.date).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
-                      </span>
-                    )}
-                  </div>
-                )}
               </div>
-              {player.bio.length > 0 && (
+              {(player.bio.length > 0 || player.log?.rows?.length > 0) && (
                 <dl className="pp-bio">
                   {player.bio.map((b) => (
                     <div key={b.label}>
@@ -200,6 +190,7 @@ export function PlayerPage({ player: ref, onBack, onOpenTeam, onOpenLeaderboard 
                       <dd>{b.value}</dd>
                     </div>
                   ))}
+                  <PlayerLastGame player={player} />
                 </dl>
               )}
             </div>
