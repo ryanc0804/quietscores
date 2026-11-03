@@ -2303,12 +2303,26 @@ function App() {
           <div className="week-label" id="weekLabel">
             {weekLabel}
           </div>
-          <button type="button" className="calendar-btn" onClick={toggleDatePicker} aria-label="Pick a date" title="Pick a date">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <rect x="3" y="5" width="18" height="16" rx="2" />
-              <path d="M16 3v4M8 3v4M3 10h18" />
-            </svg>
-          </button>
+          {/* The native picker opens next to its input, so the (invisible) input
+              sits on top of the icon and the calendar drops down right there. */}
+          <span className="calendar-anchor">
+            <input
+              ref={dateInputRef}
+              type="date"
+              id="customDate"
+              className="calendar-input"
+              tabIndex={-1}
+              aria-hidden="true"
+              value={formatDateInputValue(currentDate)}
+              onChange={handleCustomDateChange}
+            />
+            <button type="button" className="calendar-btn" onClick={toggleDatePicker} aria-label="Pick a date" title="Pick a date">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="3" y="5" width="18" height="16" rx="2" />
+                <path d="M16 3v4M8 3v4M3 10h18" />
+              </svg>
+            </button>
+          </span>
         </div>
 
         <div className="week-buttons">
@@ -2335,16 +2349,6 @@ function App() {
           </button>
         </div>
 
-        <div className="date-picker" id="datePicker">
-          <input
-            ref={dateInputRef}
-            type="date"
-            id="customDate"
-            value={formatDateInputValue(currentDate)}
-            onChange={handleCustomDateChange}
-            style={{ display: 'none' }}
-          />
-        </div>
       </div>
 
       {isCollege && conferenceOptions.length > 0 && (
