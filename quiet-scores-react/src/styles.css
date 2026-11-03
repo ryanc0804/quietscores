@@ -189,7 +189,7 @@ body.pwa-mode {
 }
 
 .week-nav-btn:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(var(--overlay), 0.05);
     color: var(--text-primary);
 }
 
@@ -204,7 +204,7 @@ body.pwa-mode {
 }
 
 .week-display:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(var(--overlay), 0.05);
 }
 
 .week-label {
@@ -229,9 +229,9 @@ body.pwa-mode {
     gap: 4px;
     margin: 0 auto 15px;
     padding: 4px;
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(var(--overlay), 0.03);
     border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(var(--overlay), 0.05);
     width: fit-content;
 }
 
@@ -258,7 +258,7 @@ body.pwa-mode {
 
 .week-btn:hover {
     color: var(--text-primary);
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(var(--overlay), 0.05);
 }
 
 .week-btn.active {
@@ -338,15 +338,15 @@ body.pwa-mode {
     align-items: center;
     gap: 4px;
     padding: 4px;
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(var(--overlay), 0.03);
     border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(var(--overlay), 0.05);
 }
 
 .filter-divider {
     width: 1px;
     height: 20px;
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(var(--overlay), 0.1);
     margin: 0 4px;
 }
 
@@ -365,7 +365,7 @@ body.pwa-mode {
 
 .sport-btn:hover {
     color: var(--text-primary);
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(var(--overlay), 0.05);
 }
 
 .sport-btn.active {
@@ -381,7 +381,7 @@ body.pwa-mode {
     gap: 8px;
     margin-top: 12px;
     padding-top: 12px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid rgba(var(--overlay), 0.1);
     animation: slideUp 0.3s ease-out;
     overflow-x: auto;
     overflow-y: hidden;
@@ -411,9 +411,9 @@ body.pwa-mode {
 }
 
 .conference-btn {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(var(--overlay), 0.05);
     color: var(--text-secondary);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(var(--overlay), 0.1);
     border-radius: 6px;
     padding: 6px 12px;
     cursor: pointer;
@@ -426,8 +426,8 @@ body.pwa-mode {
 }
 
 .conference-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(var(--overlay), 0.1);
+    border-color: rgba(var(--overlay), 0.2);
     color: var(--text-primary);
 }
 
@@ -1119,7 +1119,7 @@ body.pwa-mode {
 .score-card:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-    border-color: rgba(255, 255, 255, 0.15);
+    border-color: rgba(var(--overlay), 0.15);
     background: var(--bg-card-secondary);
 }
 
@@ -1389,7 +1389,7 @@ body.pwa-mode {
 }
 
 .game-time, .game-date {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(var(--overlay), 0.1);
     padding: 5px 10px;
     border-radius: 15px;
     border: 1px solid var(--border-secondary);
@@ -1459,7 +1459,7 @@ body.pwa-mode {
 /* Possession/At-bat highlighting */
 .team.possession .team-name,
 .team.at-bat .team-name {
-    color: rgba(255, 255, 255, 0.9);
+    color: rgba(var(--overlay), 0.9);
     font-weight: 500;
 }
 
@@ -1563,7 +1563,7 @@ body.pwa-mode {
     top: 0;
     bottom: 0;
     width: 25px;
-    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+    background: linear-gradient(to bottom, rgba(var(--overlay), 0.1), rgba(var(--overlay), 0.05));
     border-radius: 4px;
 }
 
@@ -1572,32 +1572,32 @@ body.pwa-mode {
     right: 0;
     width: 100%;
     height: 1px;
-    background: rgba(255, 255, 255, 0.6);
+    background: rgba(var(--overlay), 0.6);
 }
 
 .field-tick.goal-line {
     height: 4px;
-    background: rgba(255, 255, 255, 1);
+    background: rgba(var(--overlay), 1);
     width: 100%;
     border-radius: 2px;
 }
 
 .field-tick.ten-yard-line {
     height: 2px;
-    background: rgba(255, 255, 255, 0.8);
+    background: rgba(var(--overlay), 0.8);
     width: 100%;
 }
 
 .field-tick.five-yard-line {
     height: 1px;
-    background: rgba(255, 255, 255, 0.4);
+    background: rgba(var(--overlay), 0.4);
     width: 60%;
 }
 
 .yard-number {
     position: absolute;
     right: 30px;
-    color: rgba(255, 255, 255, 0.9);
+    color: rgba(var(--overlay), 0.9);
     font-size: 11px;
     font-weight: bold;
     background: rgba(0, 0, 0, 0.3);
@@ -2839,11 +2839,11 @@ body.pwa-mode {
 }
 
 .game-info-header {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(var(--overlay), 0.05);
     border-radius: 12px;
     padding: 24px;
     margin-bottom: 24px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(var(--overlay), 0.1);
 }
 
 .score-bar-container {
@@ -2857,7 +2857,7 @@ body.pwa-mode {
     border-radius: 999px;
     overflow: hidden;
     background: rgba(0, 0, 0, 0.4);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(var(--overlay), 0.08);
     position: relative;
 }
 
@@ -2899,11 +2899,11 @@ body.pwa-mode {
 
 /* New Game Header Layout */
 .game-info-header-new {
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(var(--overlay), 0.03);
     border-radius: 12px;
     padding: 24px;
     margin-bottom: 24px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(var(--overlay), 0.08);
 }
 
 .game-header-top {
@@ -2923,7 +2923,7 @@ body.pwa-mode {
     font-weight: 600;
     color: var(--text-secondary);
     padding: 6px 16px;
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(var(--overlay), 0.05);
     border-radius: 6px;
 }
 
@@ -3035,7 +3035,7 @@ body.pwa-mode {
     color: var(--text-secondary);
     text-align: center;
     font-size: 0.75rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(var(--overlay), 0.1);
 }
 
 .quarter-table tbody td {
@@ -3204,12 +3204,12 @@ body.pwa-mode {
 }
 
 .summary-section {
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(var(--overlay), 0.03);
     border-radius: 12px;
     padding: 20px;
     margin: 0 auto 20px; 
     max-width: 1580px; /* Matched to maximum width */
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(var(--overlay), 0.08);
 }
 
 .summary-section h3 {
@@ -3234,16 +3234,16 @@ body.pwa-mode {
     max-width: 1200px; /* Increased from 1000px */
     border-collapse: collapse;
     font-size: 0.9rem;
-    background: rgba(255, 255, 255, 0.02);
+    background: rgba(var(--overlay), 0.02);
     border-radius: 12px;
     overflow: hidden;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(var(--overlay), 0.1);
 }
 
 .boxscore-table thead {
-    background: rgba(255, 255, 255, 0.05);
-    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    background: rgba(var(--overlay), 0.05);
+    border-bottom: 2px solid rgba(var(--overlay), 0.1);
 }
 
 .boxscore-title-header {
@@ -3256,7 +3256,7 @@ body.pwa-mode {
     font-weight: 600;
     color: var(--text-primary);
     margin-bottom: 12px;
-    border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+    border-bottom: 2px solid rgba(var(--overlay), 0.2);
     padding-bottom: 8px;
 }
 
@@ -3283,7 +3283,7 @@ body.pwa-mode {
     font-size: 0.8rem;
     align-items: center;
     padding: 12px;
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(var(--overlay), 0.05);
     border-radius: 8px;
 }
 
@@ -3367,14 +3367,14 @@ body.pwa-mode {
 
 .boxscore-table td {
     padding: 14px 20px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid rgba(var(--overlay), 0.08);
     color: var(--text-secondary);
     text-align: center;
     transition: background-color 0.2s ease;
 }
 
 .boxscore-table tbody tr:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(var(--overlay), 0.05);
 }
 
 .boxscore-table tbody tr:last-child td {
@@ -3405,7 +3405,7 @@ body.pwa-mode {
     border-radius: 2px; /* square-style bar */
     overflow: hidden;
     background: rgba(0, 0, 0, 0.4);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(var(--overlay), 0.08);
     position: relative;
 }
 
@@ -3440,7 +3440,7 @@ body.pwa-mode {
     grid-template-columns: 80px 1fr auto;
     gap: 12px;
     padding: 12px;
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(var(--overlay), 0.03);
     border-radius: 8px;
     border-left: 3px solid var(--accent-primary);
 }
@@ -3470,9 +3470,9 @@ body.pwa-mode {
 
 .note-item {
     padding: 12px;
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(var(--overlay), 0.03);
     border-radius: 8px;
-    border-left: 3px solid rgba(255, 255, 255, 0.2);
+    border-left: 3px solid rgba(var(--overlay), 0.2);
 }
 
 .note-time {
@@ -3495,13 +3495,13 @@ body.pwa-mode {
 
 .headline-item {
     padding: 12px;
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(var(--overlay), 0.03);
     border-radius: 8px;
     transition: background 0.2s;
 }
 
 .headline-item:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: rgba(var(--overlay), 0.06);
 }
 
 .headline-link {
@@ -3518,7 +3518,7 @@ body.pwa-mode {
 .back-btn {
     background: transparent;
     color: var(--text-secondary);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(var(--overlay), 0.1);
     border-radius: 8px;
     padding: 8px 16px;
     cursor: pointer;
@@ -3530,7 +3530,7 @@ body.pwa-mode {
 
 .back-btn:hover {
     color: var(--text-primary);
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(var(--overlay), 0.05);
 }
 
 .back-btn.floating {
@@ -3538,9 +3538,9 @@ body.pwa-mode {
     top: 75px;
     left: 20px;
     z-index: 2000;
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(var(--overlay), 0.05);
     color: var(--text-primary);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(var(--overlay), 0.1);
     border-radius: 10px;
     padding: 10px 18px;
     font-size: 0.85rem;
@@ -3560,8 +3560,8 @@ body.pwa-mode {
 }
 
 .back-btn:hover {
-    background: rgba(255, 255, 255, 0.15);
-    border-color: rgba(255, 255, 255, 0.3);
+    background: rgba(var(--overlay), 0.15);
+    border-color: rgba(var(--overlay), 0.3);
 }
 
 /* Game Leaders - Professional Sports Layout */
@@ -3579,7 +3579,7 @@ body.pwa-mode {
     justify-content: space-around;
     align-items: center;
     padding: 20px 30px;
-    background: rgba(255, 255, 255, 0.02);
+    background: rgba(var(--overlay), 0.02);
     border-bottom: 1px solid var(--border-primary);
 }
 
@@ -3593,7 +3593,7 @@ body.pwa-mode {
 .game-leaders-team-header .team-logo {
     width: 48px !important;
     height: 48px !important;
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(var(--overlay), 0.05);
     border-radius: 50%;
     padding: 6px;
     display: flex;
@@ -3620,7 +3620,7 @@ body.pwa-mode {
     display: grid;
     grid-template-columns: 1fr 140px 1fr;
     padding: 15px 20px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid rgba(var(--overlay), 0.05);
     align-items: center;
 }
 
@@ -3754,10 +3754,10 @@ body.pwa-mode {
 }
 
 .leader-category {
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(var(--overlay), 0.03);
     border-radius: 8px;
     padding: 16px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(var(--overlay), 0.08);
 }
 
 .leader-category-name {
@@ -3780,7 +3780,7 @@ body.pwa-mode {
     justify-content: space-between;
     align-items: center;
     padding: 8px;
-    background: rgba(255, 255, 255, 0.02);
+    background: rgba(var(--overlay), 0.02);
     border-radius: 6px;
 }
 
@@ -3873,9 +3873,9 @@ body.pwa-mode {
 
 /* Full Box Score Styling */
 .boxscore-toggle-btn {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(var(--overlay), 0.05);
     color: var(--text-primary);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(var(--overlay), 0.1);
     padding: 10px 24px;
     border-radius: 8px;
     font-size: 0.9rem;
@@ -3885,8 +3885,8 @@ body.pwa-mode {
 }
 
 .boxscore-toggle-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.3);
+    background: rgba(var(--overlay), 0.1);
+    border-color: rgba(var(--overlay), 0.3);
     transform: translateY(-1px);
 }
 
@@ -3943,7 +3943,7 @@ body.pwa-mode {
 
 /* Card wrapper that groups each section of the match page */
 .mcard {
-    background: var(--bg-secondary, rgba(255,255,255,0.02));
+    background: var(--bg-secondary, rgba(var(--overlay), 0.02));
     border: 1px solid var(--border-primary);
     border-radius: 12px;
     padding: 14px 16px;
@@ -3955,7 +3955,7 @@ body.pwa-mode {
 
 /* Match header */
 .msoccer-hd {
-    background: var(--bg-secondary, rgba(255,255,255,0.02));
+    background: var(--bg-secondary, rgba(var(--overlay), 0.02));
     border: 1px solid var(--border-primary);
     border-radius: 12px;
     padding: 16px;
@@ -4054,7 +4054,7 @@ body.pwa-mode {
     border-radius: 50%;
     object-fit: cover;
     background: #2a2a2a;
-    border: 1.5px solid rgba(255,255,255,0.85);
+    border: 1.5px solid rgba(var(--overlay), 0.85);
 }
 
 .potm-rating {
@@ -4128,7 +4128,7 @@ body.pwa-mode {
 /* Full match stats */
 .fstat-periods {
     display: flex;
-    background: rgba(255,255,255,0.06);
+    background: rgba(var(--overlay), 0.06);
     border-radius: 18px;
     padding: 3px;
     margin: 0 auto 14px;
@@ -4170,7 +4170,7 @@ body.pwa-mode {
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--text-primary);
-    background: rgba(255,255,255,0.04);
+    background: rgba(var(--overlay), 0.04);
     border-radius: 6px;
     padding: 8px 0;
     margin: 8px 0 4px;
@@ -4252,7 +4252,7 @@ body.pwa-mode {
     aspect-ratio: 3 / 2;
     border-radius: 10px;
     background: linear-gradient(180deg, #1e6b3a, #17552d);
-    border: 1px solid rgba(255,255,255,0.12);
+    border: 1px solid rgba(var(--overlay), 0.12);
     margin-top: 4px;
     overflow: hidden;
 }
@@ -4392,12 +4392,12 @@ body.pwa-mode {
     position: relative;
     width: 128px;
     height: 48px;
-    border: 2px solid rgba(255,255,255,0.55);
+    border: 2px solid rgba(var(--overlay), 0.55);
     border-bottom: none;
     border-radius: 3px 3px 0 0;
     background-image:
-        repeating-linear-gradient(90deg, rgba(255,255,255,0.10) 0 1px, transparent 1px 10px),
-        repeating-linear-gradient(0deg, rgba(255,255,255,0.10) 0 1px, transparent 1px 10px);
+        repeating-linear-gradient(90deg, rgba(var(--overlay), 0.10) 0 1px, transparent 1px 10px),
+        repeating-linear-gradient(0deg, rgba(var(--overlay), 0.10) 0 1px, transparent 1px 10px);
 }
 
 .goalframe-ball {
@@ -4407,7 +4407,7 @@ body.pwa-mode {
     border-radius: 50%;
     background: #fff;
     transform: translate(-50%, -50%);
-    box-shadow: 0 0 5px rgba(255,255,255,0.85);
+    box-shadow: 0 0 5px rgba(var(--overlay), 0.85);
 }
 
 .shot-xg-row {
@@ -4451,7 +4451,7 @@ body.pwa-mode {
     grid-template-columns: 1fr 1fr 1fr;
     text-align: center;
     padding: 10px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
+    border-bottom: 1px solid rgba(var(--overlay), 0.04);
     align-items: center;
 }
 
@@ -4512,7 +4512,7 @@ body.pwa-mode {
 }
 
 .soccer-player-table tbody tr {
-    border-bottom: 1px solid rgba(255,255,255,0.03);
+    border-bottom: 1px solid rgba(var(--overlay), 0.03);
 }
 
 .soccer-player-table tbody tr.player-subbed-out {
@@ -4557,7 +4557,7 @@ body.pwa-mode {
 }
 
 .soccer-player-stat.muted {
-    color: rgba(255,255,255,0.15);
+    color: rgba(var(--overlay), 0.15);
 }
 
 .sub-divider-row td {
@@ -4572,7 +4572,7 @@ body.pwa-mode {
 /* --- FotMob soccer detail --- */
 .soccer-stat-block {
     padding: 8px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
+    border-bottom: 1px solid rgba(var(--overlay), 0.04);
 }
 
 .soccer-stat-block .soccer-stat-row {
@@ -4589,7 +4589,7 @@ body.pwa-mode {
     height: 4px;
     border-radius: 2px;
     overflow: hidden;
-    background: rgba(255,255,255,0.05);
+    background: rgba(var(--overlay), 0.05);
 }
 
 .soccer-stat-bar-seg {
@@ -4823,7 +4823,7 @@ body.pwa-mode {
     justify-content: space-between;
     align-items: center;
     padding: 9px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
+    border-bottom: 1px solid rgba(var(--overlay), 0.04);
     font-size: 0.82rem;
 }
 
@@ -4842,7 +4842,7 @@ body.pwa-mode {
     align-items: center;
     gap: 8px;
     padding: 7px 2px;
-    border-bottom: 1px solid rgba(255,255,255,0.03);
+    border-bottom: 1px solid rgba(var(--overlay), 0.03);
 }
 
 .soccer-lineup-row .soccer-player-name {
@@ -4878,9 +4878,9 @@ body.pwa-mode {
     aspect-ratio: 4 / 3;
     border-radius: 10px;
     background-image:
-        repeating-linear-gradient(90deg, rgba(255,255,255,0.045) 0 10%, rgba(255,255,255,0) 10% 20%),
+        repeating-linear-gradient(90deg, rgba(var(--overlay), 0.045) 0 10%, rgba(var(--overlay), 0) 10% 20%),
         linear-gradient(180deg, #1e6b3a, #17552d);
-    border: 1px solid rgba(255,255,255,0.12);
+    border: 1px solid rgba(var(--overlay), 0.12);
     overflow: hidden;
 }
 
@@ -4890,7 +4890,7 @@ body.pwa-mode {
     bottom: 0;
     left: 50%;
     width: 1px;
-    background: rgba(255,255,255,0.18);
+    background: rgba(var(--overlay), 0.18);
 }
 
 .pitch-center-circle {
@@ -4900,7 +4900,7 @@ body.pwa-mode {
     width: 72px;
     height: 72px;
     transform: translate(-50%, -50%);
-    border: 1px solid rgba(255,255,255,0.18);
+    border: 1px solid rgba(var(--overlay), 0.18);
     border-radius: 50%;
 }
 
@@ -4925,7 +4925,7 @@ body.pwa-mode {
     width: 30px;
     height: 30px;
     border-radius: 50%;
-    border: 1.5px solid rgba(255,255,255,0.85);
+    border: 1.5px solid rgba(var(--overlay), 0.85);
     box-sizing: border-box;
 }
 
@@ -5039,7 +5039,7 @@ body.pwa-mode {
     text-align: center;
 }
 
-.pitch-num { color: rgba(255,255,255,0.6); }
+.pitch-num { color: rgba(var(--overlay), 0.6); }
 
 .potm-star {
     color: #ffd54a;
@@ -5104,7 +5104,7 @@ body.pwa-mode {
 .full-boxscore-container {
     margin-top: 30px;
     padding-top: 20px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid rgba(var(--overlay), 0.1);
 }
 
 .team-boxscore {
@@ -5134,18 +5134,18 @@ body.pwa-mode {
     padding: 8px;
     color: var(--text-muted);
     font-weight: 600;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(var(--overlay), 0.1);
     white-space: nowrap;
 }
 
 .full-boxscore-table td {
     padding: 10px 8px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid rgba(var(--overlay), 0.03);
     white-space: nowrap;
 }
 
 .full-boxscore-table tr:hover td {
-    background: rgba(255, 255, 255, 0.02);
+    background: rgba(var(--overlay), 0.02);
 }
 
 .player-cell {
@@ -5173,7 +5173,7 @@ body.pwa-mode {
 }
 
 .table-responsive::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(var(--overlay), 0.1);
     border-radius: 2px;
 }
 
@@ -5195,10 +5195,10 @@ body.pwa-mode {
 
 .play-toggle-container {
     display: flex;
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(var(--overlay), 0.05);
     padding: 4px;
     border-radius: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(var(--overlay), 0.1);
 }
 
 .play-toggle-btn {
@@ -5243,7 +5243,7 @@ body.pwa-mode {
 }
 
 .play-card:hover {
-    border-color: rgba(255, 255, 255, 0.2);
+    border-color: rgba(var(--overlay), 0.2);
 }
 
 .play-card-left {
@@ -5344,9 +5344,9 @@ body.pwa-mode {
     text-align: center;
     color: var(--text-muted);
     font-size: 0.9rem;
-    background: rgba(255, 255, 255, 0.02);
+    background: rgba(var(--overlay), 0.02);
     border-radius: 8px;
-    border: 1px dashed rgba(255, 255, 255, 0.1);
+    border: 1px dashed rgba(var(--overlay), 0.1);
 }
 
 /* Game Snapshot Section */
@@ -5419,7 +5419,7 @@ body.pwa-mode {
 .football-field {
     height: 180px; /* Increased from 140px to make it even "fatter" */
     background: #2e7d32;
-    border: 2px solid rgba(255, 255, 255, 0.3);
+    border: 2px solid rgba(var(--overlay), 0.3);
     border-radius: 4px;
     display: flex;
     position: relative;
@@ -5504,7 +5504,7 @@ body.pwa-mode {
     flex: 1;
     position: relative;
     background-image: 
-        linear-gradient(90deg, rgba(255,255,255,0.15) 1px, transparent 1px);
+        linear-gradient(90deg, rgba(var(--overlay), 0.15) 1px, transparent 1px);
     background-size: 10% 100%;
 }
 
@@ -5523,7 +5523,7 @@ body.pwa-mode {
     position: absolute;
     height: 5px; /* Increased from 3px */
     background: rgba(0, 0, 0, 0.8);
-    box-shadow: 0 0 5px rgba(255,255,255,0.2);
+    box-shadow: 0 0 5px rgba(var(--overlay), 0.2);
 }
 
 .drive-line-dashed {
@@ -5537,18 +5537,18 @@ body.pwa-mode {
     text-align: center;
     font-size: 0.75rem;
     color: var(--text-muted);
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(var(--overlay), 0.03);
     border-radius: 8px;
     margin-top: 10px;
     cursor: pointer;
-    border: 1px dashed rgba(255, 255, 255, 0.1);
+    border: 1px dashed rgba(var(--overlay), 0.1);
     transition: all 0.2s ease;
 }
 
 .show-more-indicator:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: rgba(var(--overlay), 0.06);
     color: var(--text-primary);
-    border-color: rgba(255, 255, 255, 0.3);
+    border-color: rgba(var(--overlay), 0.3);
 }
 
 .field-yard-line {
@@ -5556,7 +5556,7 @@ body.pwa-mode {
     top: 0;
     bottom: 0;
     width: 1px;
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(var(--overlay), 0.2);
     display: flex;
     justify-content: center;
 }
@@ -5566,7 +5566,7 @@ body.pwa-mode {
     bottom: -35px; /* Adjusted for even taller field */
     font-size: 0.85rem; /* Slightly larger */
     font-weight: 800;
-    color: rgba(255, 255, 255, 0.4);
+    color: rgba(var(--overlay), 0.4);
     transform: rotateX(-32deg); /* Matches new field tilt */
 }
 
@@ -5712,13 +5712,13 @@ body.pwa-mode {
 }
 
 .chart-grid-line {
-    stroke: rgba(255, 255, 255, 0.05);
+    stroke: rgba(var(--overlay), 0.05);
     stroke-width: 1;
     stroke-dasharray: 4 4;
 }
 
 .chart-center-line {
-    stroke: rgba(255, 255, 255, 0.2);
+    stroke: rgba(var(--overlay), 0.2);
     stroke-width: 1;
 }
 
@@ -5734,8 +5734,8 @@ body.pwa-mode {
 }
 
 .last-play-card {
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(var(--overlay), 0.02);
+    border: 1px solid rgba(var(--overlay), 0.05);
     border-radius: 12px;
     padding: 20px;
     margin-top: 20px;
@@ -5790,7 +5790,7 @@ body.pwa-mode {
     color: var(--text-secondary);
     line-height: 1.5;
     padding-top: 8px;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    border-top: 1px solid rgba(var(--overlay), 0.05);
 }
 
 .espn-analytics-footer {
@@ -5975,7 +5975,7 @@ body.pwa-mode {
 
 .standings-table td {
     padding: 10px 4px;
-    border-bottom: 1px solid rgba(255,255,255,0.03);
+    border-bottom: 1px solid rgba(var(--overlay), 0.03);
 }
 
 .standings-team {
@@ -5990,7 +5990,7 @@ body.pwa-mode {
     gap: 12px;
     margin-bottom: 15px;
     padding-bottom: 15px;
-    border-bottom: 1px solid rgba(255,255,255,0.03);
+    border-bottom: 1px solid rgba(var(--overlay), 0.03);
 }
 
 .news-item:last-child {
@@ -6055,7 +6055,7 @@ body.pwa-mode {
 }
 
 .odds-box {
-    background: rgba(255,255,255,0.03);
+    background: rgba(var(--overlay), 0.03);
     border: 1px solid var(--border-primary);
     border-radius: 6px;
     padding: 8px;
@@ -6082,7 +6082,7 @@ body.pwa-mode {
     transform: translate(-50%, -50%);
     width: 80%;
     height: 120%;
-    border: 2px dashed rgba(255,255,255,0.15);
+    border: 2px dashed rgba(var(--overlay), 0.15);
     border-radius: 50%;
     clip-path: inset(0 0 50% 0);
 }
@@ -6099,7 +6099,7 @@ body.pwa-mode {
     justify-content: space-between;
     align-items: center;
     padding: 15px 20px;
-    background: rgba(255, 255, 255, 0.02);
+    background: rgba(var(--overlay), 0.02);
     border-bottom: 1px solid var(--border-primary);
 }
 
@@ -6140,8 +6140,8 @@ body.pwa-mode {
 }
 
 .team-mini-card {
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(var(--overlay), 0.02);
+    border: 1px solid rgba(var(--overlay), 0.05);
     border-radius: 10px;
     padding: 12px;
 }
@@ -6152,13 +6152,13 @@ body.pwa-mode {
     gap: 10px;
     margin-bottom: 12px;
     padding-bottom: 10px;
-    border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+    border-bottom: 1px dashed rgba(var(--overlay), 0.1);
 }
 
 .team-mini-logo {
     width: 36px;
     height: 36px;
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(var(--overlay), 0.05);
     border-radius: 50%;
     padding: 4px;
 }
@@ -6219,7 +6219,7 @@ body.pwa-mode {
 }
 
 .section-header-row.clickable:hover {
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(var(--overlay), 0.03);
 }
 
 .header-title-group {
@@ -6289,12 +6289,12 @@ body.pwa-mode {
 }
 
 .chart-center-line {
-    stroke: rgba(255, 255, 255, 0.05);
+    stroke: rgba(var(--overlay), 0.05);
     stroke-width: 1;
 }
 
 .chart-grid-line {
-    stroke: rgba(255, 255, 255, 0.03);
+    stroke: rgba(var(--overlay), 0.03);
     stroke-width: 1;
 }
 
@@ -6422,7 +6422,7 @@ body.pwa-mode {
 
 .standings-table td {
     padding: 10px 4px;
-    border-bottom: 1px solid rgba(255,255,255,0.03);
+    border-bottom: 1px solid rgba(var(--overlay), 0.03);
 }
 
 .standings-team {
@@ -6437,7 +6437,7 @@ body.pwa-mode {
     gap: 12px;
     margin-bottom: 15px;
     padding-bottom: 15px;
-    border-bottom: 1px solid rgba(255,255,255,0.03);
+    border-bottom: 1px solid rgba(var(--overlay), 0.03);
 }
 
 .news-item:last-child {
@@ -6502,7 +6502,7 @@ body.pwa-mode {
 }
 
 .odds-box {
-    background: rgba(255,255,255,0.03);
+    background: rgba(var(--overlay), 0.03);
     border: 1px solid var(--border-primary);
     border-radius: 6px;
     padding: 8px;
@@ -6538,7 +6538,7 @@ body.pwa-mode {
     height: 32px;
     border-radius: 8px;
     border: none;
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(var(--overlay), 0.08);
     color: var(--text-primary);
     cursor: pointer;
     transition: background 0.15s ease;
@@ -6546,7 +6546,7 @@ body.pwa-mode {
 }
 
 .header-back-btn:hover {
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(var(--overlay), 0.15);
 }
 
 .header-logo-group {
@@ -6558,7 +6558,7 @@ body.pwa-mode {
     display: flex;
     align-items: center;
     gap: 8px;
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(var(--overlay), 0.05);
     border: 1px solid var(--border-primary);
     color: var(--text-primary);
     padding: 6px 12px;
@@ -6570,7 +6570,7 @@ body.pwa-mode {
 }
 
 .home-nav-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(var(--overlay), 0.1);
     border-color: var(--text-muted);
 }
 
@@ -6591,7 +6591,7 @@ body.pwa-mode {
 
 .ticker-filter-toggle:hover {
     color: var(--text-primary);
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(var(--overlay), 0.05);
 }
 
 .ticker-filter-toggle svg {
@@ -6616,7 +6616,7 @@ body.pwa-mode {
 }
 
 .ticker-filter-btn {
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(var(--overlay), 0.03);
     border: 1px solid var(--border-primary);
     color: var(--text-secondary);
     padding: 6px 10px;
@@ -6630,7 +6630,7 @@ body.pwa-mode {
 }
 
 .ticker-filter-btn:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(var(--overlay), 0.08);
 }
 
 .ticker-filter-btn.active {
@@ -6653,7 +6653,7 @@ body.pwa-mode {
 
 /* Use one hover box that spans name + score */
 .team:has(.team-info-clickable:hover) {
-    background: rgba(255, 255, 255, 0.07);
+    background: rgba(var(--overlay), 0.07);
 }
 
 /* Keep score slightly closer to team info */
@@ -6675,7 +6675,7 @@ body.pwa-mode {
 }
 
 .team-header-clickable:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: rgba(var(--overlay), 0.06);
 }
 
 /* ─── Team Page ─── */
@@ -6747,12 +6747,12 @@ body.pwa-mode {
 }
 
 .roster-table tbody tr {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    border-bottom: 1px solid rgba(var(--overlay), 0.04);
     transition: background 0.12s ease;
 }
 
 .roster-table tbody tr:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: rgba(var(--overlay), 0.04);
 }
 
 .roster-table tbody td {
@@ -6773,13 +6773,13 @@ body.pwa-mode {
     display: flex;
     align-items: center;
     padding: 10px 12px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    border-bottom: 1px solid rgba(var(--overlay), 0.04);
     gap: 12px;
     transition: background 0.12s ease;
 }
 
 .schedule-row:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: rgba(var(--overlay), 0.04);
 }
 
 .schedule-date {
