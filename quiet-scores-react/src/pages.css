@@ -414,3 +414,4 @@
 .pp-bio-game small { display: block; margin-top: 2px; font-size: 0.74rem; font-weight: 600; color: rgba(255, 255, 255, 0.75); }
 .pp-bio-game dt.live { color: #fff; }
 .pp-bio-game dt.live::before { content: '●'; margin-right: 5px; color: #ff5a5f; }
+.pp-adv-source { margin-left: 8px; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.3px; text-transform: none; color: var(--text-muted); }

@@ -7,6 +7,7 @@
 //   - college football: byathlete returns the right order but blank values
 //   - NFL defensive interceptions: byathlete returns HTTP 400
 import { SPORT_PATHS } from './espnApi'
+import { advancedSiblings, fetchAdvancedLeaderboard, isAdvancedBoard } from './advanced'
 
 const WEB = 'https://site.web.api.espn.com/apis/common/v3/sports'
 const CORE = 'https://sports.core.api.espn.com/v2/sports'
@@ -172,8 +173,21 @@ export async function leaderboardFor(sport, tileStat, position, seasonLabel) {
 // Stats that make poor standalone leaderboards (games played, fumbles lost…).
 const SKIP_TAB = /^gamesPlayed$|^games$|Fumbles$|FumblesLost$|^gamesStarted$|^flagrantFouls$|^ejections$/
 
+/** The season ESPN's boards are for (e.g. 2026; 2027 = the 2026–27 NBA season). */
+export async function seasonYear(sport) {
+  return (await leaderMeta(sport)).year
+}
+
+/** Does a player-page summary describe the season the boards are for? */
+export async function isCurrentSeason(sport, seasonLabel) {
+  const tileYear = summaryYear(seasonLabel)
+  const year = await seasonYear(sport)
+  return !tileYear || !year || tileYear === year
+}
+
 /** Every board in the same category as `board`, for the stat tabs. */
 export async function boardsInCategory(board, position) {
+  if (isAdvancedBoard(board)) return advancedSiblings(board)
   const meta = await leaderMeta(board.sport)
   const cat = meta.categories.find((c) => c.name === board.category)
   if (!cat) return [board]
@@ -198,10 +212,10 @@ export function formatRank(rank) {
  * (none given, a different pool, or ranked here). Looks deeper than the page.
  * Returns { rank: "T-4th" } or { rank: null, reason }.
  */
-export async function findRank(board, athleteId, { signal } = {}) {
+export async function findRank(board, athleteId, { signal, mlbId } = {}) {
   const deep = board.sport === 'college-football' || coreBoard(board) ? 50 : 200
   const data = await fetchLeaderboard(board, { limit: deep, signal })
-  const me = data.rows.find((r) => r.athleteId === String(athleteId))
+  const me = data.rows.find((r) => r.athleteId === String(athleteId) || (mlbId && r.mlbId === mlbId))
   if (me) {
     const tied = data.rows.filter((r) => r.rank === me.rank).length > 1
     return { rank: `${tied ? 'T-' : ''}${formatRank(me.rank)}` }
@@ -247,6 +261,7 @@ const pooledBoard = (b) => POOLED[b.sport]?.[`${b.category}.${b.stat}`] || null
 
 /** Top `limit` players for a board from leaderboardFor(). */
 export async function fetchLeaderboard(board, { limit = 50, signal } = {}) {
+  if (isAdvancedBoard(board)) return fetchAdvancedLeaderboard(board, { limit })
   const path = SPORT_PATHS[board.sport]
   const qualified = isQualifiedBoard(board)
   const byathlete = (category, stat, dir, lim) =>

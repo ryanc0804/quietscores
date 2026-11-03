@@ -195,6 +195,7 @@ function normalizePlayer(sport, a, overview, gamelog) {
     position: a.position?.displayName || a.position?.name || null,
     positionAbbr: a.position?.abbreviation || null,
     headshot: a.headshot?.href || null,
+    birthDate: a.displayDOB || null, // "26/4/1992"
     status: a.status?.name && a.status.name !== 'Active' ? a.status.name : null,
     injury: a.injuries?.[0]?.status || null,
     team,

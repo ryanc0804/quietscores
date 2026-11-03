@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { boardsInCategory, fetchLeaderboard, formatRank } from '../lib/leaders'
-import { SPORT_LABEL } from '../lib/players'
+import { SPORT_LABEL, searchEspn } from '../lib/players'
 
 // ESPN names winter seasons by the year they end (2027 = the 2026–27 season).
 const SPLIT_YEAR = new Set(['nba', 'nhl', 'college-basketball'])
@@ -49,7 +49,14 @@ export function LeaderboardPage({ view, onBack, onOpenPlayer, onChangeBoard }) {
     tabsRef.current?.querySelector('.active')?.scrollIntoView({ block: 'nearest', inline: 'center' })
   }, [boards, board])
 
-  const mine = data?.rows.find((r) => r.athleteId === player?.id)
+  const isMe = (r) => r.athleteId === player?.id || (player?.mlbId && r.mlbId === player.mlbId)
+  const mine = data?.rows.find(isMe)
+  // Rows from MLB's lists have no ESPN id; find the ESPN player by name.
+  const openRow = async (r) => {
+    if (r.athleteId) return onOpenPlayer({ sport: board.sport, athleteId: r.athleteId, name: r.name, headshot: r.headshot })
+    const hit = (await searchEspn(r.name).catch(() => null))?.players.find((p) => p.sport === board.sport)
+    if (hit) onOpenPlayer({ sport: board.sport, athleteId: hit.athleteId, name: hit.name, headshot: hit.headshot })
+  }
   const inList = Boolean(mine)
   const tile = tiles[board.stat]
 
@@ -95,13 +102,13 @@ export function LeaderboardPage({ view, onBack, onOpenPlayer, onChangeBoard }) {
           {data && data.rows.length > 0 && (
             <ol className="lb-list">
               {data.rows.map((r) => {
-                const me = r.athleteId === player?.id
+                const me = isMe(r)
                 return (
-                  <li key={r.athleteId} ref={me ? meRef : null}>
+                  <li key={r.athleteId || r.mlbId} ref={me ? meRef : null}>
                     <button
                       type="button"
                       className={`lb-row ${me ? 'me' : ''}`}
-                      onClick={() => onOpenPlayer({ sport: board.sport, athleteId: r.athleteId, name: r.name, headshot: r.headshot })}
+                      onClick={() => openRow(r)}
                     >
                       <span className="lb-rank">{r.rank}</span>
                       {r.headshot ? (

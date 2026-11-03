@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { fetchPlayer, trendFor, SPORT_LABEL } from '../lib/players'
 import { heroColors } from './heroColor'
 import { SummarySkeleton } from '../components/Skeletons'
-import { findRank, formatRank, leaderboardFor } from '../lib/leaders'
+import { findRank, formatRank, isCurrentSeason, leaderboardFor, seasonYear } from '../lib/leaders'
+import { fetchAdvanced } from '../lib/advanced'
 import { fetchCareer } from '../lib/career'
 import { PlayerLastGame } from '../components/PlayerLastGame'
 
@@ -64,6 +65,7 @@ export function PlayerPage({ player: ref, onBack, onOpenTeam, onOpenLeaderboard 
   const [boards, setBoards] = useState({}) // tile key → leaderboard, for tiles that have one
   const [foundRanks, setFoundRanks] = useState({}) // tile key → { rank } | { reason }, when ESPN gave none
   const [career, setCareer] = useState(null)
+  const [advanced, setAdvanced] = useState(null)
   const [careerTab, setCareerTab] = useState(null)
 
   useEffect(() => {
@@ -105,6 +107,21 @@ export function PlayerPage({ player: ref, onBack, onOpenTeam, onOpenLeaderboard 
     }
   }, [player])
 
+  // Advanced stats (NFL, MLB) for the current season only: an inactive
+  // player's page shows last season, which these lists don't cover.
+  useEffect(() => {
+    if (!player || !['nfl', 'mlb'].includes(player.sport)) return
+    let cancelled = false
+    ;(async () => {
+      if (!(await isCurrentSeason(player.sport, player.seasonLabel))) return
+      const adv = await fetchAdvanced(player, await seasonYear(player.sport))
+      if (!cancelled) setAdvanced(adv)
+    })().catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [player])
+
   useEffect(() => {
     if (!player) return
     const controller = new AbortController()
@@ -132,6 +149,16 @@ export function PlayerPage({ player: ref, onBack, onOpenTeam, onOpenLeaderboard 
     })
   }
   const activeCareer = career?.tabs.find((c) => c.key === careerTab) || career?.tabs[0]
+
+  const openAdvancedBoard = (t) => {
+    const tiles = Object.fromEntries(advanced.tiles.filter((x) => x.board).map((x) => [x.board.stat, { value: x.value, rank: x.rank, reason: x.reason }]))
+    onOpenLeaderboard({
+      board: t.board,
+      position: player.positionAbbr,
+      player: { id: player.id, mlbId: advanced.mlbId, name: player.name, headshot: player.headshot || ref.headshot },
+      tiles,
+    })
+  }
 
   const trend = useMemo(() => trendFor(player), [player])
   const colors = heroColors(player?.team?.color)
@@ -230,6 +257,34 @@ export function PlayerPage({ player: ref, onBack, onOpenTeam, onOpenLeaderboard 
                       </button>
                     ) : (
                       <div key={t.key} className="pg-card pp-tile">{body}</div>
+                    )
+                  })}
+                </div>
+              </section>
+            )}
+
+            {advanced && (
+              <section>
+                <h2 className="pg-section-title">
+                  Advanced <span className="pp-adv-source">via {advanced.source}</span>
+                </h2>
+                <div className="pp-tiles">
+                  {advanced.tiles.map((t) => {
+                    const rankText = t.rank ? `${t.rank} in ${SPORT_LABEL[player.sport]}` : t.reason
+                    const body = (
+                      <>
+                        <div className="pp-tile-label">{t.label}</div>
+                        <div className="pp-tile-value">{t.value}</div>
+                        {rankText && <div className={`pp-tile-rank ${t.rank ? '' : 'muted'}`}>{rankText}</div>}
+                      </>
+                    )
+                    return t.board ? (
+                      <button key={t.key} type="button" className="pg-card pp-tile clickable" title={t.desc || undefined}
+                        onClick={() => openAdvancedBoard(t)} aria-label={`${t.label} ${t.value}${rankText ? `, ${rankText}` : ''}. Show league leaderboard`}>
+                        {body}
+                      </button>
+                    ) : (
+                      <div key={t.key} className="pg-card pp-tile" title={t.desc || undefined}>{body}</div>
                     )
                   })}
                 </div>
