@@ -1,8 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useScores } from './hooks/useScores'
 import { useFavorites } from './hooks/useFavorites'
 import { useTheme } from './hooks/useTheme'
+import { usePersistentState } from './hooks/usePersistentState'
+import { conferencesInGames, gameInConference, groupGamesByConference, isCollegeSport } from './lib/conferences'
 import { ScoresSkeleton, SummarySkeleton } from './components/Skeletons'
+import { AuthModal, AccountButton } from './components/AuthModal'
+import { useAuth } from './hooks/useAuth'
+import { TeamPage } from './pages/TeamPage'
+import { PlayerPage } from './pages/PlayerPage'
+import { SearchButton, SearchPalette } from './components/SearchPalette'
 import {
   Section,
   Linescore,
@@ -26,7 +33,7 @@ import {
   getWinProbabilitySeries,
   isFootball,
 } from './lib/gameDetails'
-import { fetchGameSummary, fetchStandings, filterStandingsByTeams, fetchTeamInfo, fetchTeamRoster, fetchTeamSchedule, fetchUFCFightStats } from './lib/espnApi'
+import { fetchGameSummary, fetchStandings, filterStandingsByTeams, fetchUFCFightStats } from './lib/espnApi'
 
 const SUMMARY_REFRESH_MS = 15_000
 
@@ -242,29 +249,6 @@ function getTeamColor(team, fallbackColor = '#007bff') {
     return color.startsWith('#') ? color : `#${color}`
   }
   return fallbackColor
-}
-
-function hexToRgba(hex, alpha = 0.9) {
-  if (!hex || typeof hex !== 'string') return `rgba(0, 123, 255, ${alpha})`
-  // Remove # if present
-  const cleaned = hex.replace('#', '')
-  // Handle 3-character hex codes
-  if (cleaned.length === 3) {
-    const r = parseInt(cleaned[0] + cleaned[0], 16)
-    const g = parseInt(cleaned[1] + cleaned[1], 16)
-    const b = parseInt(cleaned[2] + cleaned[2], 16)
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`
-  }
-  // Handle 6-character hex codes
-  if (cleaned.length === 6) {
-    const r = parseInt(cleaned.slice(0, 2), 16)
-    const g = parseInt(cleaned.slice(2, 4), 16)
-    const b = parseInt(cleaned.slice(4, 6), 16)
-    if (isNaN(r) || isNaN(g) || isNaN(b)) return `rgba(0, 123, 255, ${alpha})`
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`
-  }
-  // Fallback for invalid hex
-  return `rgba(0, 123, 255, ${alpha})`
 }
 
 function getWinner(game) {
@@ -573,6 +557,7 @@ function ScoreCard({ game, onOpenSummary, onOpenTeam, isFavorite, onToggleFavori
       <div className="game-header">
         <span className="sport-type">
           {getSportDisplayName(game.sport)}
+          {game.homeConference && game.homeConference === game.awayConference ? ` • ${game.homeConference}` : ''}
           {game.broadcastChannel ? ` • ${abbreviateNetwork(game.broadcastChannel)}` : ''}
         </span>
         {statusBadge}
@@ -1172,8 +1157,6 @@ function GameSummary({ game, onBack, onOpenTeam }) {
       const stats = detail.stats ?? []
       const timeline = detail.timeline ?? []
       const lineups = detail.lineups ?? {}
-      const awayAbbr = game.awayAbbreviation
-      const homeAbbr = game.homeAbbreviation
       const awayColor = detail.colors?.away || '#4ea1f3'
       const homeColor = detail.colors?.home || '#f0883e'
       const potmId = detail.potm?.id ?? null
@@ -1183,27 +1166,6 @@ function GameSummary({ game, onBack, onOpenTeam }) {
         return Number.isNaN(n) ? 0 : n
       }
       const ratingBucket = (r) => (r >= 7 ? 'high' : r >= 6 ? 'mid' : 'low')
-
-      const renderStatRow = (s) => {
-        const a = parseNum(s.away)
-        const h = parseNum(s.home)
-        const total = a + h
-        const awayP = total > 0 ? (a / total) * 100 : 50
-        const homeP = total > 0 ? (h / total) * 100 : 50
-        return (
-          <div key={s.key} className="soccer-stat-block">
-            <div className="soccer-stat-row">
-              <span className="soccer-stat-value" style={s.highlighted === 'home' ? { color: homeColor } : undefined}>{s.home}</span>
-              <span className="soccer-stat-label">{s.label}</span>
-              <span className="soccer-stat-value" style={s.highlighted === 'away' ? { color: awayColor } : undefined}>{s.away}</span>
-            </div>
-            <div className="soccer-stat-bar">
-              <div className="soccer-stat-bar-seg" style={{ width: `${homeP}%`, background: homeColor }} />
-              <div className="soccer-stat-bar-seg" style={{ width: `${awayP}%`, background: awayColor }} />
-            </div>
-          </div>
-        )
-      }
 
       const eventIcon = (e) => {
         if (e.type === 'Goal') return <span className="ev-ico ball">⚽</span>
@@ -1335,7 +1297,7 @@ function GameSummary({ game, onBack, onOpenTeam }) {
         )
       }
 
-      const renderLineup = (side, accent) => {
+      const renderLineup = (side) => {
         if (!side || !side.starters?.length) return null
         const renderRow = (p, idx) => (
           <div key={idx} className="soccer-lineup-row">
@@ -1672,8 +1634,8 @@ function GameSummary({ game, onBack, onOpenTeam }) {
           <div className="soccer-section-title">Lineups</div>
           {renderCombinedPitch()}
           <div className="soccer-lineup-lists">
-            {renderLineup(lineups.home, homeColor)}
-            {renderLineup(lineups.away, awayColor)}
+            {renderLineup(lineups.home)}
+            {renderLineup(lineups.away)}
           </div>
           {((lineups.home?.subs?.length || 0) + (lineups.away?.subs?.length || 0)) > 0 && (
             <button className="subs-toggle" onClick={() => setShowSubs(s => !s)}>
@@ -2015,303 +1977,6 @@ function GameSummary({ game, onBack, onOpenTeam }) {
   )
 }
 
-function TeamPage({ team, onBack, isFavorite, onToggleFavorite }) {
-  const [teamInfo, setTeamInfo] = useState(null)
-  const [roster, setRoster] = useState(null)
-  const [schedule, setSchedule] = useState(null)
-  const [standings, setStandings] = useState(null)
-  const [activeTab, setActiveTab] = useState('roster')
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    let cancelled = false
-    setIsLoading(true)
-
-    async function loadData() {
-      const [info, rost, sched, stand] = await Promise.all([
-        fetchTeamInfo(team.sport, team.teamId),
-        fetchTeamRoster(team.sport, team.teamId),
-        fetchTeamSchedule(team.sport, team.teamId),
-        fetchStandings(team.sport),
-      ])
-      if (cancelled) return
-
-      setTeamInfo(info)
-      setRoster(rost)
-      setSchedule(sched)
-
-      if (stand) {
-        const t = info?.team
-        const teamIdentifiers = {
-          ids: [String(team.teamId), t?.id ? String(t.id) : ''].filter(Boolean),
-          names: [team.teamName, t?.displayName, t?.shortDisplayName, t?.name].filter(Boolean),
-          abbrs: [team.teamAbbreviation, t?.abbreviation].filter(Boolean),
-        }
-        const filtered = filterStandingsByTeams(stand, teamIdentifiers)
-        setStandings(filtered)
-      }
-      setIsLoading(false)
-    }
-
-    loadData()
-    return () => { cancelled = true }
-  }, [team.teamId, team.sport])
-
-  const teamData = teamInfo?.team
-  const teamColor = teamData?.color ? `#${teamData.color}` : '#007bff'
-  const teamLogo = teamData?.logos?.[0]?.href || team.teamLogo
-  const teamName = teamData?.displayName || team.teamName
-  const teamRecord = teamData?.record?.items?.[0]?.summary || ''
-
-  // Group roster by position
-  const rosterGroups = useMemo(() => {
-    if (!roster) return []
-    const athletes = roster.athletes || []
-    if (athletes.length > 0 && athletes[0].items) {
-      return athletes.map(group => ({
-        name: group.position || group.name || 'Players',
-        players: group.items || [],
-      }))
-    }
-    const grouped = {}
-    athletes.forEach(player => {
-      const pos = player.position?.displayName || player.position?.name || 'Other'
-      if (!grouped[pos]) grouped[pos] = []
-      grouped[pos].push(player)
-    })
-    return Object.entries(grouped).map(([name, players]) => ({ name, players }))
-  }, [roster])
-
-  // Parse schedule events
-  const scheduleEvents = useMemo(() => {
-    if (!schedule) return []
-    const events = schedule.events || schedule.items || []
-    return events.map(evt => {
-      const comp = evt.competitions?.[0]
-      const competitors = comp?.competitors || []
-      const us = competitors.find(c => String(c.id) === String(team.teamId) || String(c.team?.id) === String(team.teamId))
-      const them = competitors.find(c => c !== us) || competitors[1] || competitors[0]
-      const isHome = us?.homeAway === 'home'
-      const ourScore = us?.score?.value ?? us?.score
-      const theirScore = them?.score?.value ?? them?.score
-      const winner = us?.winner
-      const dateStr = evt.date || comp?.date
-      let dateDisplay = ''
-      if (dateStr) {
-        const d = new Date(dateStr)
-        dateDisplay = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-      }
-      const status = comp?.status?.type?.name || evt.status?.type?.name || ''
-      const isCompleted = status === 'STATUS_FINAL' || comp?.status?.type?.completed
-      const isScheduled = status === 'STATUS_SCHEDULED' || (!isCompleted && !ourScore)
-
-      return {
-        id: evt.id,
-        date: dateStr,
-        dateDisplay,
-        isHome,
-        opponentName: them?.team?.displayName || them?.team?.name || 'TBD',
-        opponentAbbr: them?.team?.abbreviation || '',
-        opponentLogo: them?.team?.logos?.[0]?.href || them?.team?.logo,
-        ourScore: ourScore != null ? String(ourScore) : '',
-        theirScore: theirScore != null ? String(theirScore) : '',
-        isCompleted,
-        isScheduled,
-        won: winner === true,
-        lost: winner === false,
-        statusText: isCompleted ? 'Final' : isScheduled ? (evt.status?.type?.shortDetail || 'Scheduled') : (comp?.status?.type?.shortDetail || ''),
-      }
-    })
-  }, [schedule, team.teamId])
-
-  // Standings section reuse
-  const StandingsBlock = () => {
-    if (!standings || !standings.groups?.length) return <div style={{ padding: '20px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>No standings available.</div>
-    return (
-      <div>
-        {standings.groups.map((group, gIdx) => (
-          <div key={gIdx} style={{ marginBottom: '20px' }}>
-            <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '10px' }}>
-              {group.name}
-            </div>
-            <table className="roster-table">
-              <thead>
-                <tr>
-                  <th style={{ textAlign: 'left' }}>TEAM</th>
-                  <th>W</th>
-                  <th>L</th>
-                  <th>PCT</th>
-                </tr>
-              </thead>
-              <tbody>
-                {group.standings?.entries?.map((entry, eIdx) => {
-                  const isUs = String(entry.team?.id) === String(team.teamId)
-                  return (
-                    <tr key={eIdx} style={isUs ? { background: 'rgba(0, 123, 255, 0.15)' } : {}}>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <img src={entry.team?.logos?.[0]?.href} alt="" style={{ width: '16px', height: '16px' }} />
-                          <span style={isUs ? { fontWeight: '700', color: 'var(--text-primary)' } : {}}>{entry.team?.displayName}</span>
-                        </div>
-                      </td>
-                      <td>{entry.stats?.find(s => s.name === 'wins')?.value ?? '-'}</td>
-                      <td>{entry.stats?.find(s => s.name === 'losses')?.value ?? '-'}</td>
-                      <td>{entry.stats?.find(s => s.name === 'winPercent')?.displayValue ?? '-'}</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        ))}
-      </div>
-    )
-  }
-
-  const favorite = !!isFavorite?.(team.sport, team.teamId)
-
-  return (
-    <div className="team-page-container">
-      <button className="back-btn" onClick={onBack} aria-label="Back">
-        <span aria-hidden="true">←</span> Back
-      </button>
-      {isLoading ? (
-        <SummarySkeleton />
-      ) : (
-        <>
-          {/* Team Header */}
-          <div className="team-page-header">
-            <div className="team-page-logo">
-              <img src={teamLogo} alt="" />
-            </div>
-            <div className="team-page-info">
-              <h1 style={{ color: teamColor }}>{teamName}</h1>
-              {teamRecord && <div className="team-page-record">{teamRecord}</div>}
-              {teamData?.standingSummary && (
-                <div className="team-page-standing">{teamData.standingSummary}</div>
-              )}
-            </div>
-            {onToggleFavorite && (
-              <button
-                type="button"
-                className={`fav-pill ${favorite ? 'on' : ''}`}
-                aria-pressed={favorite}
-                onClick={() => onToggleFavorite({ sport: team.sport, teamId: team.teamId, name: teamName, logo: teamLogo, abbreviation: team.teamAbbreviation })}
-              >
-                {favorite ? '★ Following' : '☆ Follow'}
-              </button>
-            )}
-          </div>
-
-          {/* Tabs */}
-          <div className="summary-tabs">
-            {['roster', 'schedule', 'standings'].map(tab => (
-              <button
-                key={tab}
-                className={`summary-tab ${activeTab === tab ? 'active' : ''}`}
-                onClick={() => setActiveTab(tab)}
-              >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </button>
-            ))}
-          </div>
-
-          {/* Tab Content */}
-          {activeTab === 'roster' && (
-            <div>
-              {rosterGroups.length === 0 ? (
-                <div style={{ padding: '20px', color: 'var(--text-muted)' }}>No roster data available.</div>
-              ) : (
-                rosterGroups.map((group, gIdx) => (
-                  <div key={gIdx} className="standings-section" style={{ marginBottom: '16px' }}>
-                    <div className="section-header">
-                      <h3>{group.name.toUpperCase()}</h3>
-                    </div>
-                    <table className="roster-table">
-                      <thead>
-                        <tr>
-                          <th style={{ textAlign: 'left' }}>#</th>
-                          <th style={{ textAlign: 'left' }}>NAME</th>
-                          <th>POS</th>
-                          <th>AGE</th>
-                          <th>HT</th>
-                          <th>WT</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {group.players.map((player, pIdx) => (
-                          <tr key={pIdx}>
-                            <td>{player.jersey || '-'}</td>
-                            <td style={{ textAlign: 'left' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                {player.headshot?.href && (
-                                  <img src={player.headshot.href} alt="" style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover', background: 'var(--bg-secondary)' }} />
-                                )}
-                                <span style={{ fontWeight: '600' }}>{player.displayName || player.fullName}</span>
-                              </div>
-                            </td>
-                            <td>{player.position?.abbreviation || '-'}</td>
-                            <td>{player.age || '-'}</td>
-                            <td>{player.displayHeight || '-'}</td>
-                            <td>{player.displayWeight || '-'}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-
-          {activeTab === 'schedule' && (
-            <div className="standings-section">
-              <div className="section-header">
-                <h3>SCHEDULE</h3>
-              </div>
-              {scheduleEvents.length === 0 ? (
-                <div style={{ padding: '20px', color: 'var(--text-muted)' }}>No schedule data available.</div>
-              ) : (
-                <div className="schedule-list">
-                  {scheduleEvents.map((evt, idx) => (
-                    <div key={idx} className="schedule-row">
-                      <div className="schedule-date">{evt.dateDisplay}</div>
-                      <div className="schedule-matchup">
-                        <span className="schedule-home-away">{evt.isHome ? 'vs' : '@'}</span>
-                        {evt.opponentLogo && <img src={evt.opponentLogo} alt="" className="schedule-opp-logo" />}
-                        <span className="schedule-opp-name">{evt.opponentName}</span>
-                      </div>
-                      <div className="schedule-result">
-                        {evt.isCompleted ? (
-                          <>
-                            <span className={`schedule-wl ${evt.won ? 'win' : 'loss'}`}>{evt.won ? 'W' : 'L'}</span>
-                            <span className="schedule-score">{evt.ourScore}-{evt.theirScore}</span>
-                          </>
-                        ) : (
-                          <span className="schedule-status">{evt.statusText}</span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === 'standings' && (
-            <div className="standings-section">
-              <div className="section-header">
-                <h3>DIVISION STANDINGS</h3>
-              </div>
-              <StandingsBlock />
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  )
-}
-
 function ThemeIcon({ mode }) {
   const common = { width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true }
   if (mode === 'light') {
@@ -2346,12 +2011,20 @@ function App() {
   const [activeDay, setActiveDay] = useState(todayKey === 'sunday' ? 'sunday' : todayKey)
   const [currentDate, setCurrentDate] = useState(() => new Date(today))
   const [selectedSport, setSelectedSport] = useState('all')
-  const [selectedGame, setSelectedGame] = useState(null)
-  const [selectedTeam, setSelectedTeam] = useState(null)
+  // Navigation: a stack of detail views over the scores list, mirrored in
+  // browser history so the phone/browser back button walks back through it.
+  // Each entry is { type: 'game' | 'team' | 'player', value }.
+  const [viewStack, setViewStack] = useState([])
+  const [searchOpen, setSearchOpen] = useState(false)
+  const topView = viewStack[viewStack.length - 1] || null
+  const selectedGame = topView?.type === 'game' ? topView.value : null
+  const selectedTeam = topView?.type === 'team' ? topView.value : null
+  const selectedPlayer = topView?.type === 'player' ? topView.value : null
   const [showLiveOnly, setShowLiveOnly] = useState(false)
 
   const { scores, isLoading, error } = useScores(currentDate)
-  const { favorites, isFavorite, toggleFavorite, gameHasFavorite } = useFavorites()
+  const { favorites, isFavorite, toggleFavorite, gameHasFavorite, syncError, needsLogin } = useFavorites()
+  const { openLogin } = useAuth()
   const { mode: themeMode, cycle: cycleTheme } = useTheme()
   const listScrollRef = useRef(0)
 
@@ -2362,20 +2035,29 @@ function App() {
     return scores.find((g) => g.id === selectedGame.id && g.sport === selectedGame.sport) ?? selectedGame
   }, [scores, selectedGame])
 
-  // Browser/phone back button closes the team page, then the game page.
+  // Browser/phone back button pops detail views.
   useEffect(() => {
     const onPop = (e) => {
-      const view = e.state?.qsView
-      if (view === 'game') {
-        setSelectedTeam(null)
-      } else if (!view) {
-        setSelectedTeam(null)
-        setSelectedGame(null)
-        requestAnimationFrame(() => window.scrollTo(0, listScrollRef.current))
-      }
+      const depth = e.state?.qsDepth || 0
+      setViewStack((stack) => stack.slice(0, depth))
+      if (!depth) requestAnimationFrame(() => window.scrollTo(0, listScrollRef.current))
     }
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
+  }, [])
+
+  // "/" or Ctrl/Cmd+K opens search from anywhere (unless typing in a field).
+  useEffect(() => {
+    const onKey = (e) => {
+      const tag = e.target?.tagName
+      const typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target?.isContentEditable
+      if ((e.key === '/' && !typing && !e.metaKey && !e.ctrlKey && !e.altKey) || ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k')) {
+        e.preventDefault()
+        setSearchOpen(true)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
   }, [])
 
   const dateInputRef = useRef(null)
@@ -2391,10 +2073,17 @@ function App() {
     return map
   }, [baseMonday, weekOffset])
 
+  const closeAllViews = () => {
+    if (window.history.state?.qsDepth) {
+      try { window.history.replaceState(null, '') } catch { /* ignore */ }
+    }
+    setViewStack([])
+  }
+
   const handleSportClick = (sport) => {
     setSelectedSport(sport)
     setShowLiveOnly(false)
-    setSelectedGame(null)
+    if (viewStack.length) closeAllViews()
   }
 
   const handleDaySelect = (dayKey) => {
@@ -2445,47 +2134,56 @@ function App() {
     }
   }
 
-  const handleOpenGameSummary = (game) => {
-    if (!selectedGame && !selectedTeam) listScrollRef.current = window.scrollY
-    setSelectedTeam(null)
-    setSelectedGame(game)
-    try { window.history.pushState({ qsView: 'game' }, '') } catch { /* ignore */ }
+  const pushView = (type, value) => {
+    if (!viewStack.length) listScrollRef.current = window.scrollY
+    const top = viewStack[viewStack.length - 1]
+    const sameAsTop =
+      top?.type === type &&
+      ((type === 'team' && String(top.value.teamId) === String(value.teamId) && top.value.sport === value.sport) ||
+        (type === 'player' && String(top.value.athleteId) === String(value.athleteId)))
+    if (sameAsTop) return
+    const next = [...viewStack, { type, value }]
+    setViewStack(next)
+    try { window.history.pushState({ qsDepth: next.length }, '') } catch { /* ignore */ }
     window.scrollTo(0, 0)
   }
 
-  const handleOpenTeamPage = (teamInfo) => {
-    if (!selectedGame && !selectedTeam) listScrollRef.current = window.scrollY
-    setSelectedTeam(teamInfo)
-    try { window.history.pushState({ qsView: 'team' }, '') } catch { /* ignore */ }
-    window.scrollTo(0, 0)
-  }
+  const handleOpenGameSummary = (game) => pushView('game', game)
+  const handleOpenTeamPage = (teamInfo) => pushView('team', teamInfo)
+  const handleOpenPlayer = (playerRef) => pushView('player', playerRef)
 
   // In-app back buttons mirror the browser back button.
   const handleBack = () => {
-    if (window.history.state?.qsView) {
+    if (window.history.state?.qsDepth) {
       window.history.back()
       return
     }
-    if (selectedTeam) {
-      setSelectedTeam(null)
-    } else {
-      setSelectedGame(null)
-      requestAnimationFrame(() => window.scrollTo(0, listScrollRef.current))
-    }
+    setViewStack((stack) => stack.slice(0, -1))
+    if (viewStack.length <= 1) requestAnimationFrame(() => window.scrollTo(0, listScrollRef.current))
   }
 
   const handleBackToScores = () => {
-    if (window.history.state?.qsView) {
-      try { window.history.replaceState(null, '') } catch { /* ignore */ }
-    }
-    setSelectedTeam(null)
-    setSelectedGame(null)
+    closeAllViews()
     setWeekOffset(0)
     setActiveDay(todayKey)
     setCurrentDate(new Date(today))
   }
 
   const weekLabel = formatWeekLabel(weekOffset)
+
+  // College sports: conference filter, remembered per sport.
+  const [conferenceBySport, setConferenceBySport] = usePersistentState('qs:conference:v1', {})
+  const isCollege = isCollegeSport(selectedSport)
+  const conferenceOptions = useMemo(
+    () => (isCollege ? conferencesInGames(selectedSport, scores.filter((g) => g.sport === selectedSport)) : []),
+    [isCollege, selectedSport, scores],
+  )
+  const savedConference = conferenceBySport[selectedSport] || 'all'
+  // If the saved conference has no games on this date, fall back to showing all.
+  const selectedConference =
+    isCollege && conferenceOptions.some((c) => c.name === savedConference) ? savedConference : 'all'
+  const setSelectedConference = (conf) =>
+    setConferenceBySport((prev) => ({ ...prev, [selectedSport]: conf }))
 
   const sortedScores = useMemo(() => {
     let baseScores =
@@ -2497,6 +2195,10 @@ function App() {
             ? scores.filter((game) => SOCCER_SPORT_KEYS.includes(game.sport))
             : scores.filter((game) => game.sport === selectedSport)
 
+    if (selectedConference !== 'all') {
+      baseScores = baseScores.filter((game) => gameInConference(game, selectedConference))
+    }
+
     if (showLiveOnly) {
       baseScores = baseScores.filter(game => game.status === 'live' || game.status === 'halftime')
     }
@@ -2504,7 +2206,7 @@ function App() {
     const copy = [...baseScores]
     copy.sort(compareGames)
     return copy
-  }, [scores, selectedSport, showLiveOnly, gameHasFavorite])
+  }, [scores, selectedSport, showLiveOnly, gameHasFavorite, selectedConference])
 
   // Pin games featuring favorite teams to the top of the list.
   const favoriteGames = useMemo(
@@ -2514,6 +2216,13 @@ function App() {
   const otherGames = useMemo(
     () => (favoriteGames.length ? sortedScores.filter((g) => !gameHasFavorite(g)) : sortedScores),
     [sortedScores, favoriteGames, gameHasFavorite],
+  )
+  // With "All" conferences selected, list college games under conference headings.
+  const conferenceGroups = useMemo(
+    () => (isCollege && selectedConference === 'all' && conferenceOptions.length > 1
+      ? groupGamesByConference(selectedSport, otherGames)
+      : null),
+    [isCollege, selectedConference, conferenceOptions.length, selectedSport, otherGames],
   )
 
 
@@ -2535,24 +2244,43 @@ function App() {
       game={game}
       onOpenSummary={handleOpenGameSummary}
       onOpenTeam={handleOpenTeamPage}
-      isFavorite={isFavorite}
-      onToggleFavorite={toggleFavorite}
       highlight={highlight}
     />
   )
 
   const emptyMessage =
-    selectedSport === 'favorites'
+    selectedSport === 'favorites' && needsLogin
+      ? (
+        <>
+          Sign in to follow teams and see their games here.{' '}
+          <button type="button" className="auth-link" onClick={() => openLogin()}>Sign in</button>
+        </>
+      )
+      : selectedSport === 'favorites'
       ? favorites.length
         ? 'None of your teams play on this date.'
-        : 'Tap the ☆ next to any team to follow it. Their games will show up here and at the top of the list.'
+        : 'Open any team (click its name on a game) and tap ☆ Follow. Their games will show up here and at the top of the list.'
       : showLiveOnly
         ? 'No live games right now.'
         : 'No games scheduled for this date.'
 
   // Show team page > game summary > score list (priority order)
-  const mainContent = selectedTeam ? (
-    <TeamPage team={selectedTeam} onBack={handleBack} isFavorite={isFavorite} onToggleFavorite={toggleFavorite} />
+  const mainContent = selectedPlayer ? (
+    <PlayerPage
+      key={`${selectedPlayer.sport}-${selectedPlayer.athleteId}`}
+      player={selectedPlayer}
+      onBack={handleBack}
+      onOpenTeam={handleOpenTeamPage}
+    />
+  ) : selectedTeam ? (
+    <TeamPage
+      key={`${selectedTeam.sport}-${selectedTeam.teamId}`}
+      team={selectedTeam}
+      onBack={handleBack}
+      isFavorite={isFavorite}
+      onToggleFavorite={toggleFavorite}
+      onOpenPlayer={handleOpenPlayer}
+    />
   ) : activeGame ? (
     <GameSummary key={`${activeGame.sport}-${activeGame.id}`} game={activeGame} onBack={handleBack} onOpenTeam={handleOpenTeamPage} />
   ) : (
@@ -2600,6 +2328,31 @@ function App() {
         </div>
       </div>
 
+      {isCollege && conferenceOptions.length > 0 && (
+        <div className="conference-bar" role="toolbar" aria-label="Filter by conference">
+          <button
+            className={`conf-chip ${selectedConference === 'all' ? 'active' : ''}`}
+            aria-pressed={selectedConference === 'all'}
+            onClick={() => setSelectedConference('all')}
+          >
+            All
+          </button>
+          {conferenceOptions.map((c) => (
+            <button
+              key={c.name}
+              className={`conf-chip ${selectedConference === c.name ? 'active' : ''}`}
+              aria-pressed={selectedConference === c.name}
+              onClick={() => setSelectedConference(c.name)}
+            >
+              {c.name}
+              <span className="conf-count">{c.count}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {syncError && <div className="sync-error" role="alert">{syncError}</div>}
+
       <div className="scores-container" id="scoresContainer">
         {error ? (
           <div className="error">Unable to load scores. Please try again.</div>
@@ -2615,10 +2368,19 @@ function App() {
               <>
                 <h2 className="scores-group-title"><span className="star">★</span> Your Teams</h2>
                 {favoriteGames.map((game) => renderCard(game, true))}
-                <h2 className="scores-group-title">All Games</h2>
+                {!conferenceGroups && <h2 className="scores-group-title">All Games</h2>}
               </>
             )}
-            {otherGames.map((game) => renderCard(game, selectedSport === 'favorites'))}
+            {conferenceGroups
+              ? conferenceGroups.map(([conf, games]) => (
+                  <Fragment key={conf}>
+                    <h2 className="scores-group-title conf-title">
+                      {conf} <span className="conf-count">{games.length}</span>
+                    </h2>
+                    {games.map((game) => renderCard(game))}
+                  </Fragment>
+                ))
+              : otherGames.map((game) => renderCard(game, selectedSport === 'favorites'))}
           </>
         )}
       </div>
@@ -2641,7 +2403,7 @@ function App() {
               style={{ display: liveCount > 0 ? 'flex' : 'none', cursor: 'pointer' }}
               onClick={() => {
                 setShowLiveOnly(!showLiveOnly)
-                setSelectedGame(null)
+                if (viewStack.length) closeAllViews()
               }}
             >
               <span>Live</span>
@@ -2652,9 +2414,9 @@ function App() {
               className={['sport-btn', 'fav-filter', selectedSport === 'favorites' ? 'active' : ''].filter(Boolean).join(' ')}
               onClick={() => handleSportClick('favorites')}
               aria-label="Show favorite teams"
-              title="Your teams"
+              title="Favorites"
             >
-              ★<span className="fav-filter-label"> Mine</span>
+              ★<span className="fav-filter-label"> Favorites</span>
             </button>
             {SPORT_BUTTONS.map((button) => (
               <button
@@ -2672,6 +2434,8 @@ function App() {
         </div>
 
         <div className="header-right">
+          <SearchButton onOpen={() => setSearchOpen(true)} />
+          <AccountButton />
           <button
             type="button"
             className="theme-toggle"
@@ -2688,7 +2452,18 @@ function App() {
         {mainContent}
       </div>
 
-      {!activeGame && !selectedTeam && (
+      <AuthModal />
+
+      {searchOpen && (
+        <SearchPalette
+          onClose={() => setSearchOpen(false)}
+          onOpenTeam={handleOpenTeamPage}
+          onOpenPlayer={handleOpenPlayer}
+          favorites={favorites}
+        />
+      )}
+
+      {!topView && (
         <footer className="site-footer">
           <a 
             href="https://buymeacoffee.com/ryanc0804" 

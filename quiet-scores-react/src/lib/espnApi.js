@@ -1,3 +1,4 @@
+import { conferenceFor } from './conferences'
 import {
   fetchFotmobSoccerScoreboard,
   fetchFotmobMatchDetail,
@@ -166,25 +167,6 @@ function transformEvent(event, sportKey) {
 
   if (!home || !away) return null
 
-  // Debug: Log team structure for college sports to find conference data
-  if (sportKey === 'college-football' || sportKey === 'college-basketball') {
-    // Log first game only to avoid spam
-    if (!window._loggedConferenceDebug) {
-      window._loggedConferenceDebug = true
-      console.log('=== CONFERENCE DEBUG ===')
-      console.log('Home competitor:', home)
-      console.log('Home team:', home.team)
-      console.log('Home team keys:', home.team ? Object.keys(home.team) : 'no team')
-      console.log('Competitor keys:', Object.keys(home))
-      if (home.team) {
-        console.log('Team group:', home.team.group)
-        console.log('Team conference:', home.team.conference)
-        console.log('Team groups:', home.team.groups)
-        console.log('Full team object:', JSON.stringify(home.team, null, 2).substring(0, 1000))
-      }
-    }
-  }
-
   const status = event.status ?? {}
   const statusType = status.type ?? {}
   const normalizedStatus = normalizeStatus(
@@ -212,11 +194,9 @@ function transformEvent(event, sportKey) {
   const homeAbbreviation = home.team?.abbreviation || null
   const awayAbbreviation = away.team?.abbreviation || null
 
-  // Extract conference information for college sports
-  // ESPN API doesn't reliably provide conference data in scoreboard endpoint
-  // We'll use hardcoded team lists for filtering instead
-  const homeConference = null
-  const awayConference = null
+  // Conference labels for college sports (from team.conferenceId)
+  const homeConference = conferenceFor(sportKey, home, competition)
+  const awayConference = conferenceFor(sportKey, away, competition)
 
   // Extract possession/at-bat information
   let possessionTeam = null
@@ -1015,5 +995,5 @@ async function fetchUFCFightStats(eventId, compId, awayAthleteId, homeAthleteId,
   return { awayStats, homeStats }
 }
 
-export { ESPN_APIS, ESPN_SUMMARY_APIS, fetchAllScoreboards, fetchSportScoreboard, fetchGameSummary, fetchTeamConferences, fetchStandings, filterStandingsByTeams, fetchTeamInfo, fetchTeamRoster, fetchTeamSchedule, fetchUFCFightStats }
+export { SPORT_PATHS, ESPN_APIS, ESPN_SUMMARY_APIS, fetchAllScoreboards, fetchSportScoreboard, fetchGameSummary, fetchTeamConferences, fetchStandings, filterStandingsByTeams, fetchTeamInfo, fetchTeamRoster, fetchTeamSchedule, fetchUFCFightStats }
 
