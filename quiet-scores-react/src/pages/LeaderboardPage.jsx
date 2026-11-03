@@ -63,7 +63,11 @@ export function LeaderboardPage({ view, onBack, onOpenPlayer, onChangeBoard }) {
   return (
     <div className="pg-page">
       <div className="pg-wrap lb-page">
-        <button className="back-btn" onClick={onBack}><span aria-hidden="true">←</span> Back</button>
+        {/* Same spot and style as the Back on player/team pages. */}
+        <button type="button" className="pg-back lb-back" onClick={onBack}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
+          Back
+        </button>
 
         <header className="lb-head">
           <span className="lb-eyebrow">{[SPORT_LABEL[board.sport], board.year && `${seasonName(board)} regular season`, 'League leaders'].filter(Boolean).join(' · ')}</span>

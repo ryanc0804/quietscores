@@ -165,9 +165,10 @@
 .pg-back:hover { color: #fff; }
 .pg-eyebrow { display: block; font-size: 0.78rem; font-weight: 700; letter-spacing: 1.3px; text-transform: uppercase; color: rgba(255, 255, 255, 0.78); }
 .pg-title {
-    margin: 4px 0 6px;
+    /* Room below for descenders (the y in "Zay") before the team pill. */
+    margin: 4px 0 12px;
     font-family: 'Barlow Condensed', 'Inter', system-ui, sans-serif;
-    font-size: clamp(2.4rem, 6vw, 4rem); line-height: 0.95; font-weight: 700; letter-spacing: 0.2px; color: #fff;
+    font-size: clamp(2.4rem, 6vw, 4rem); line-height: 1.02; font-weight: 700; letter-spacing: 0.2px; color: #fff;
 }
 .pg-next {
     /* Plain text on the header colour, like the player header's info. */
@@ -340,8 +341,13 @@
 .pp-tile.clickable:hover, .pp-tile.clickable:focus-visible { border-color: var(--accent-primary); transform: translateY(-1px); }
 
 /* League leaderboard page */
-.lb-page { max-width: 760px; }
-.lb-head { margin: 14px 0 16px; }
+/* Full page width like player/team pages (so Back lines up); the list itself
+   stays a readable width. */
+.lb-page { padding-top: 12px; padding-bottom: 48px; }
+.lb-page > :not(.lb-back) { max-width: 760px; }
+.pg-back.lb-back { color: var(--text-secondary); }
+.pg-back.lb-back:hover { color: var(--text-primary); }
+.lb-head { margin: 0 0 16px; }
 .lb-eyebrow { font-size: 0.7rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted); }
 .lb-title { margin: 4px 0 0; font-family: 'Barlow Condensed', 'Inter', sans-serif; font-size: 2.4rem; font-weight: 700; line-height: 1.05; }
 .lb-desc { margin: 6px 0 0; font-size: 0.85rem; color: var(--text-secondary); }
