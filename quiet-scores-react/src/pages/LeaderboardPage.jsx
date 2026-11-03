@@ -90,7 +90,7 @@ export function LeaderboardPage({ view, onBack, onOpenPlayer, onChangeBoard }) {
         <section className="pg-card lb-card">
           {!data && !error && <div className="lb-status">Loading…</div>}
           {error && <div className="lb-status error">{error}</div>}
-          {data && !data.rows.length && <div className="lb-status">No qualified players yet this season.</div>}
+          {data && !data.rows.length && <div className="lb-status">Nobody has recorded this stat yet this season.</div>}
 
           {data && data.rows.length > 0 && (
             <ol className="lb-list">
@@ -136,7 +136,7 @@ export function LeaderboardPage({ view, onBack, onOpenPlayer, onChangeBoard }) {
           {data && (
             <footer className="lb-foot">
               {data.capped
-                ? `Top ${data.rows.length} FBS players shown.`
+                ? `Top ${data.rows.length}${board.sport === 'college-football' ? ' FBS' : ''} players shown.`
                 : `Top ${data.rows.length} of ${data.total} ${data.qualified ? 'qualified players (minimum playing time applies)' : 'players with a stat'}.`}
             </footer>
           )}

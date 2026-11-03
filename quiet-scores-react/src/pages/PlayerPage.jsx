@@ -21,11 +21,12 @@ function Headshot({ src, name }) {
   return <img className="pp-headshot" src={src} alt={name} onError={() => setFailed(true)} />
 }
 
-// ESPN's player-page rank matches its leaderboards everywhere except college
-// basketball, where it uses a different pool; there the tile rank is looked up
-// on the leaderboard so the two always agree.
-function usesSummaryRank(sport, tile) {
-  return Boolean(tile.rankFull) && sport !== 'college-basketball'
+// ESPN's player-page rank matches its leaderboards except in college
+// basketball (a different pool) and on boards ranked here (QB interceptions,
+// W-L shown as wins); there the tile rank is looked up on the leaderboard so
+// the two always agree.
+function usesSummaryRank(sport, tile, board) {
+  return Boolean(tile.rankFull) && sport !== 'college-basketball' && !board?.ownRank && !board?.aliased
 }
 
 function formatDate(iso) {
@@ -82,7 +83,7 @@ export function PlayerPage({ player: ref, onBack, onOpenTeam, onOpenLeaderboard 
     let cancelled = false
     Promise.all(
       player.tiles.map((t) =>
-        leaderboardFor(player.sport, t.key, player.positionAbbr)
+        leaderboardFor(player.sport, t.key, player.positionAbbr, player.seasonLabel)
           .then((b) => [t.key, b])
           .catch(() => [t.key, null]),
       ),
@@ -93,7 +94,7 @@ export function PlayerPage({ player: ref, onBack, onOpenTeam, onOpenLeaderboard 
       // ESPN leaves some ranks off the player page (all of college basketball,
       // unqualified rate stats); look those up on the leaderboard itself.
       for (const t of player.tiles) {
-        if (!found[t.key] || usesSummaryRank(player.sport, t)) continue
+        if (!found[t.key] || usesSummaryRank(player.sport, t, found[t.key])) continue
         findRank(found[t.key], player.id)
           .then((r) => !cancelled && setFoundRanks((prev) => ({ ...prev, [t.key]: r })))
           .catch(() => {})
@@ -117,11 +118,11 @@ export function PlayerPage({ player: ref, onBack, onOpenTeam, onOpenLeaderboard 
   }, [player])
 
   // Rank shown on a tile: ESPN's own, or one we looked up.
-  const tileRank = (t) => (usesSummaryRank(player.sport, t) ? { rank: formatRank(t.rankFull) } : foundRanks[t.key] || null)
+  const tileRank = (t) => (usesSummaryRank(player.sport, t, boards[t.key]) ? { rank: formatRank(t.rankFull) } : foundRanks[t.key] || null)
 
   const openLeaderboard = (t) => {
     const tiles = Object.fromEntries(
-      player.tiles.filter((x) => boards[x.key]).map((x) => [x.key, { value: x.value, ...(tileRank(x) || {}) }]),
+      player.tiles.filter((x) => boards[x.key]).map((x) => [boards[x.key].stat, { value: x.value, ...(tileRank(x) || {}) }]),
     )
     onOpenLeaderboard({
       board: boards[t.key],
