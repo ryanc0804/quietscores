@@ -10,6 +10,7 @@ import { useAuth } from './hooks/useAuth'
 import { TeamPage } from './pages/TeamPage'
 import { PlayerPage } from './pages/PlayerPage'
 import { LeaderboardPage } from './pages/LeaderboardPage'
+import { FavoritesUpcoming, NextSlate } from './components/Upcoming'
 import { SearchButton, SearchPalette } from './components/SearchPalette'
 import {
   Section,
@@ -2090,17 +2091,22 @@ function App() {
     goToWeek(weekOffset + 1)
   }
 
-  const handleCustomDateChange = (event) => {
-    const value = event.target.value
-    if (!value) return
-    const [year, month, day] = value.split('-').map(Number)
-    const selected = new Date(year, month - 1, day)
+  const goToDate = (date) => {
+    const selected = stripTime(date)
     const selectedMonday = getMonday(selected)
     const diffWeeks = Math.round((stripTime(selectedMonday) - baseMonday) / MILLISECONDS_IN_DAY / 7)
     setWeekOffset(diffWeeks)
     const newActiveDay = getDayKeyFromDate(selected)
     setActiveDay(DAY_KEYS.includes(newActiveDay) ? newActiveDay : 'monday')
     setCurrentDate(selected)
+    setShowLiveOnly(false)
+  }
+
+  const handleCustomDateChange = (event) => {
+    const value = event.target.value
+    if (!value) return
+    const [year, month, day] = value.split('-').map(Number)
+    goToDate(new Date(year, month - 1, day))
   }
 
   const toggleDatePicker = () => {
@@ -2221,6 +2227,19 @@ function App() {
             : scores.filter((game) => game.sport === selectedSport)
     return sportScores.filter((game) => game.status === 'live' || game.status === 'halftime').length
   }, [scores, selectedSport, gameHasFavorite])
+
+  const viewingToday = stripTime(currentDate).getTime() === today.getTime()
+  const favoritesOffToday = useMemo(() => {
+    if (!(selectedSport === 'favorites' && viewingToday && !needsLogin)) return []
+    const playing = new Set(scores.flatMap((g) => [`${g.sport}:${g.homeTeamId}`, `${g.sport}:${g.awayTeamId}`]))
+    return favorites.filter((f) => !playing.has(f.key))
+  }, [selectedSport, viewingToday, needsLogin, scores, favorites])
+  const comingUp = favoritesOffToday.length > 0 && !showLiveOnly && (
+    <FavoritesUpcoming favorites={favoritesOffToday} onOpenTeam={handleOpenTeamPage} />
+  )
+  // A single sport with nothing on this date points at its next game day.
+  const singleSport = !['all', 'favorites'].includes(selectedSport) && !showLiveOnly
+  const sportLabel = SPORT_BUTTONS.find((b) => b.value === selectedSport)?.label || selectedSport
 
   const renderCard = (game, highlight = false) => (
     <ScoreCard
@@ -2352,6 +2371,15 @@ function App() {
         ) : sortedScores.length === 0 ? (
           isLoading ? (
             <ScoresSkeleton />
+          ) : comingUp ? (
+            comingUp
+          ) : singleSport ? (
+            <NextSlate
+              sportKeys={selectedSport === 'soccer' ? SOCCER_SPORT_KEYS : [selectedSport]}
+              label={sportLabel}
+              from={currentDate}
+              onGo={goToDate}
+            />
           ) : (
             <div className="info empty-state">{emptyMessage}</div>
           )
@@ -2374,6 +2402,7 @@ function App() {
                   </Fragment>
                 ))
               : otherGames.map((game) => renderCard(game, selectedSport === 'favorites'))}
+            {comingUp}
           </>
         )}
       </div>

@@ -32,6 +32,7 @@ export function parseSchedule(schedule, teamId) {
         status: comp?.status?.type?.shortDetail || '',
         state: comp?.status?.type?.state || null, // 'pre' | 'in' | 'post'
         neutral: !!comp?.neutralSite, // e.g. international games: "vs", not "@"
+        headline: comp?.notes?.[0]?.headline || evt.name || '', // "Super Bowl LXI", "NBA Finals - Game 7"…
         venue: comp?.venue?.fullName || null,
       }
     })

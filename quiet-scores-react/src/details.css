@@ -662,3 +662,20 @@ html, body { background: var(--bg-primary); color: var(--text-primary); }
     .account-btn.signin { padding: 0 10px; font-size: 0.75rem; }
 }
 .team-page-container > .back-btn { align-self: flex-start; width: auto; }
+
+/* Favorites: a card per team with no game today (live / final / next / offseason) */
+.fav-next-card .fnc-body { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.fnc-team { display: flex; align-items: center; gap: 10px; font-size: 1.02rem; }
+.fnc-logo { width: 30px; height: 30px; object-fit: contain; }
+.fnc-game { display: flex; align-items: center; gap: 7px; font-weight: 700; color: var(--text-secondary); }
+.fnc-vs { font-weight: 600; color: var(--text-muted); }
+.fnc-opp-logo { width: 20px; height: 20px; object-fit: contain; }
+.fnc-score { margin-left: auto; font-variant-numeric: tabular-nums; }
+.fnc-sub { font-size: 0.8rem; color: var(--text-muted); }
+.next-slate-hint { margin-top: 6px; font-size: 0.85rem; color: var(--text-muted); }
+.next-slate-btn {
+    margin-top: 12px; padding: 9px 16px; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--accent-primary); background: transparent;
+    color: var(--accent-primary); font: inherit; font-weight: 700;
+}
+.next-slate-btn:hover { background: color-mix(in srgb, var(--accent-primary) 12%, transparent); }
