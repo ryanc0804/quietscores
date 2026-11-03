@@ -206,7 +206,7 @@ export function TeamPage({ team, onBack, isFavorite, onToggleFavorite, onOpenPla
               {next && (
                 <div className="pg-next">
                   <span className="pg-next-label">Next game{next.week ? ` · Week ${next.week}` : ''}</span>
-                  <span className="pg-next-name">{next.home ? 'vs' : '@'} {next.opponent}</span>
+                  <span className="pg-next-name">{next.home || next.neutral ? 'vs' : '@'} {next.opponent}</span>
                   <span className="pg-next-when">{formatWhen(next.date)}</span>
                 </div>
               )}
@@ -247,10 +247,10 @@ export function TeamPage({ team, onBack, isFavorite, onToggleFavorite, onOpenPla
                   </div>
                   <div className="tp-form">
                     {played.slice(-10).map((g) => (
-                      <div key={g.id} className="tp-form-game" title={`${g.home ? 'vs' : '@'} ${g.opponent}`}>
+                      <div key={g.id} className="tp-form-game" title={`${g.home || g.neutral ? 'vs' : '@'} ${g.opponent}`}>
                         <span className="tp-form-when">{g.week ? `WK ${g.week}` : formatWhen(g.date, false).split(', ')[1]}</span>
                         <span className={`tp-form-badge ${g.result === 'W' ? 'w' : g.result === 'L' ? 'l' : ''}`}>{g.result}</span>
-                        <span className="tp-form-opp">{g.home ? '' : '@ '}{g.opponentShort}</span>
+                        <span className="tp-form-opp">{g.home || g.neutral ? '' : '@ '}{g.opponentShort}</span>
                         <span className="tp-form-score">{g.ours}-{g.theirs}</span>
                       </div>
                     ))}
@@ -292,7 +292,7 @@ export function TeamPage({ team, onBack, isFavorite, onToggleFavorite, onOpenPla
                         <span className="pg-muted tp-up-wk">{g.week ? `WEEK ${g.week}` : formatWhen(g.date, false)}</span>
                         <span className="tp-up-opp">
                           <Logo src={g.opponentLogo} className="pg-team-cell-logo" />
-                          {g.home ? 'vs' : '@'} {g.opponent}
+                          {g.home || g.neutral ? 'vs' : '@'} {g.opponent}
                         </span>
                         <span className="pg-muted">{formatWhen(g.date)}</span>
                       </li>
@@ -339,7 +339,7 @@ export function TeamPage({ team, onBack, isFavorite, onToggleFavorite, onOpenPla
                     <span className="pg-muted tp-sched-when">{g.week ? `WK ${g.week} · ` : ''}{formatWhen(g.date, false)}</span>
                     <span className="tp-up-opp">
                       <Logo src={g.opponentLogo} className="pg-team-cell-logo" />
-                      {g.home ? 'vs' : '@'} {g.opponent}
+                      {g.home || g.neutral ? 'vs' : '@'} {g.opponent}
                     </span>
                     {g.completed ? (
                       <span className="tp-sched-result">
