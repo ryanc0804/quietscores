@@ -94,23 +94,8 @@ html, body { background: var(--bg-primary); color: var(--text-primary); }
 :root[data-theme="light"] .game-leaders-header { background: transparent; }
 
 /* ---------- Header controls ---------- */
-.theme-toggle {
-    width: 34px;
-    height: 34px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 9px;
-    border: 1px solid var(--border-primary);
-    background: transparent;
-    color: var(--text-secondary);
-    font-size: 1rem;
-    cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease;
-}
-.theme-toggle:hover { background: rgba(var(--overlay), 0.06); color: var(--text-primary); }
 
-.fav-filter { color: var(--fav); }
+.fav-filter { color: var(--fav); font-size: 1.05rem; min-width: 38px; }
 .fav-filter.active { color: var(--fav); }
 
 /* Sport filters scroll horizontally instead of overflowing on small screens */
@@ -500,7 +485,6 @@ html, body { background: var(--bg-primary); color: var(--text-primary); }
     .gd-play { grid-template-columns: 44px 1fr auto; }
     .gd-drive .gd-plays { padding-left: 8px; }
     .gd-wp-chart { height: 140px; }
-    .fav-filter-label { display: none; }
 }
 
 /* Detail pages: give the two-column gamecast room to breathe */
@@ -610,6 +594,22 @@ html, body { background: var(--bg-primary); color: var(--text-primary); }
     background: transparent; color: var(--text-primary); font-size: 0.85rem; font-weight: 600; cursor: pointer;
 }
 .account-dropdown button:hover { background: rgba(var(--overlay), 0.06); }
+.account-btn.avatar.guest {
+    background: transparent; color: var(--text-secondary); border: 1px solid var(--border-primary);
+}
+.account-btn.avatar.guest:hover { background: rgba(var(--overlay), 0.06); color: var(--text-primary); }
+.account-dropdown .account-signin { color: var(--accent-primary); }
+.account-section-label {
+    padding: 10px 10px 6px; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.8px;
+    text-transform: uppercase; color: var(--text-muted);
+}
+.account-theme { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 0 4px 6px; }
+.account-dropdown .account-theme button {
+    display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 4px;
+    text-align: center; font-size: 0.75rem; border: 1px solid var(--border-primary); border-radius: 8px;
+}
+.account-dropdown .account-theme button.active { border-color: var(--accent-primary); color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 12%, transparent); }
+.account-dropdown .account-signout { border-top: 1px solid var(--border-primary); border-radius: 0 0 6px 6px; margin-top: 2px; }
 
 .auth-backdrop {
     position: fixed; inset: 0; z-index: 3000;
