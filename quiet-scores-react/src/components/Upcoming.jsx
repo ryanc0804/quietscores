@@ -28,7 +28,7 @@ function FavoriteTeamCard({ fav, status, onOpenTeam }) {
     onOpenTeam({ teamId: fav.teamId, sport: fav.sport, teamName: fav.name, teamLogo: fav.logo, teamAbbreviation: fav.abbreviation })
 
   return (
-    <div className="score-card is-favorite fav-next-card" role="button" tabIndex={0} onClick={openTeam}
+    <div className="score-card fav-next-card" role="button" tabIndex={0} onClick={openTeam}
       onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), openTeam())}
       aria-label={`${fav.name}: ${badge.text}`}>
       <div className="game-header">

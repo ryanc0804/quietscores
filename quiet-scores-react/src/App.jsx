@@ -11,6 +11,7 @@ import { TeamPage } from './pages/TeamPage'
 import { PlayerPage } from './pages/PlayerPage'
 import { LeaderboardPage } from './pages/LeaderboardPage'
 import { FavoritesUpcoming, NextSlate } from './components/Upcoming'
+import { ConferenceBar } from './components/ConferenceBar'
 import { SearchButton, SearchPalette } from './components/SearchPalette'
 import {
   Section,
@@ -2341,26 +2342,7 @@ function App() {
       </div>
 
       {isCollege && conferenceOptions.length > 0 && (
-        <div className="conference-bar" role="toolbar" aria-label="Filter by conference">
-          <button
-            className={`conf-chip ${selectedConference === 'all' ? 'active' : ''}`}
-            aria-pressed={selectedConference === 'all'}
-            onClick={() => setSelectedConference('all')}
-          >
-            All
-          </button>
-          {conferenceOptions.map((c) => (
-            <button
-              key={c.name}
-              className={`conf-chip ${selectedConference === c.name ? 'active' : ''}`}
-              aria-pressed={selectedConference === c.name}
-              onClick={() => setSelectedConference(c.name)}
-            >
-              {c.name}
-              <span className="conf-count">{c.count}</span>
-            </button>
-          ))}
-        </div>
+        <ConferenceBar options={conferenceOptions} selected={selectedConference} onSelect={setSelectedConference} />
       )}
 
       {syncError && <div className="sync-error" role="alert">{syncError}</div>}
