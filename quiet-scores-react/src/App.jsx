@@ -9,6 +9,7 @@ import { AuthModal, AccountButton } from './components/AuthModal'
 import { useAuth } from './hooks/useAuth'
 import { TeamPage } from './pages/TeamPage'
 import { PlayerPage } from './pages/PlayerPage'
+import { LeaderboardPage } from './pages/LeaderboardPage'
 import { SearchButton, SearchPalette } from './components/SearchPalette'
 import {
   Section,
@@ -2013,13 +2014,14 @@ function App() {
   const [selectedSport, setSelectedSport] = useState('all')
   // Navigation: a stack of detail views over the scores list, mirrored in
   // browser history so the phone/browser back button walks back through it.
-  // Each entry is { type: 'game' | 'team' | 'player', value }.
+  // Each entry is { type: 'game' | 'team' | 'player' | 'leaders', value }.
   const [viewStack, setViewStack] = useState([])
   const [searchOpen, setSearchOpen] = useState(false)
   const topView = viewStack[viewStack.length - 1] || null
   const selectedGame = topView?.type === 'game' ? topView.value : null
   const selectedTeam = topView?.type === 'team' ? topView.value : null
   const selectedPlayer = topView?.type === 'player' ? topView.value : null
+  const selectedLeaders = topView?.type === 'leaders' ? topView.value : null
   const [showLiveOnly, setShowLiveOnly] = useState(false)
 
   const { scores, isLoading, error } = useScores(currentDate)
@@ -2151,6 +2153,13 @@ function App() {
   const handleOpenGameSummary = (game) => pushView('game', game)
   const handleOpenTeamPage = (teamInfo) => pushView('team', teamInfo)
   const handleOpenPlayer = (playerRef) => pushView('player', playerRef)
+  const handleOpenLeaderboard = (view) => pushView('leaders', view)
+  // Switching stat tabs swaps the board in place, so Back still returns to the player.
+  const handleChangeLeaderboard = (board) =>
+    setViewStack((stack) => {
+      const top = stack[stack.length - 1]
+      return top?.type === 'leaders' ? [...stack.slice(0, -1), { type: 'leaders', value: { ...top.value, board } }] : stack
+    })
 
   // In-app back buttons mirror the browser back button.
   const handleBack = () => {
@@ -2265,13 +2274,21 @@ function App() {
         : 'No games scheduled for this date.'
 
   // Show team page > game summary > score list (priority order)
-  const mainContent = selectedPlayer ? (
+  const mainContent = selectedLeaders ? (
+    <LeaderboardPage
+      key={`${selectedLeaders.board.sport}-${selectedLeaders.board.category}`}
+      view={selectedLeaders}
+      onBack={handleBack}
+      onOpenPlayer={handleOpenPlayer}
+      onChangeBoard={handleChangeLeaderboard}
+    />
+  ) : selectedPlayer ? (
     <PlayerPage
       key={`${selectedPlayer.sport}-${selectedPlayer.athleteId}`}
       player={selectedPlayer}
       onBack={handleBack}
       onOpenTeam={handleOpenTeamPage}
-      onOpenPlayer={handleOpenPlayer}
+      onOpenLeaderboard={handleOpenLeaderboard}
     />
   ) : selectedTeam ? (
     <TeamPage

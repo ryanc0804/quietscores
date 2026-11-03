@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { fetchPlayer, trendFor, SPORT_LABEL } from '../lib/players'
 import { heroColors } from './heroColor'
 import { SummarySkeleton } from '../components/Skeletons'
-import { LeaderboardModal } from '../components/LeaderboardModal'
-import { leaderboardFor } from '../lib/leaders'
+import { findRank, formatRank, leaderboardFor } from '../lib/leaders'
+import { fetchCareer } from '../lib/career'
 
 function Headshot({ src, name }) {
   const [failed, setFailed] = useState(false)
@@ -18,6 +18,13 @@ function Headshot({ src, name }) {
     )
   }
   return <img className="pp-headshot" src={src} alt={name} onError={() => setFailed(true)} />
+}
+
+// ESPN's player-page rank matches its leaderboards everywhere except college
+// basketball, where it uses a different pool; there the tile rank is looked up
+// on the leaderboard so the two always agree.
+function usesSummaryRank(sport, tile) {
+  return Boolean(tile.rankFull) && sport !== 'college-basketball'
 }
 
 function formatDate(iso) {
@@ -48,12 +55,14 @@ function TrendChart({ trend }) {
   )
 }
 
-export function PlayerPage({ player: ref, onBack, onOpenTeam, onOpenPlayer }) {
+export function PlayerPage({ player: ref, onBack, onOpenTeam, onOpenLeaderboard }) {
   const [player, setPlayer] = useState(null)
   const [error, setError] = useState(null)
   const [showAllGames, setShowAllGames] = useState(false)
   const [boards, setBoards] = useState({}) // tile key → leaderboard, for tiles that have one
-  const [openTile, setOpenTile] = useState(null)
+  const [foundRanks, setFoundRanks] = useState({}) // tile key → { rank } | { reason }, when ESPN gave none
+  const [career, setCareer] = useState(null)
+  const [careerTab, setCareerTab] = useState(null)
 
   useEffect(() => {
     // The page is keyed per player in App, so state starts fresh for each one.
@@ -77,12 +86,50 @@ export function PlayerPage({ player: ref, onBack, onOpenTeam, onOpenPlayer }) {
           .catch(() => [t.key, null]),
       ),
     ).then((pairs) => {
-      if (!cancelled) setBoards(Object.fromEntries(pairs.filter(([, b]) => b)))
+      if (cancelled) return
+      const found = Object.fromEntries(pairs.filter(([, b]) => b))
+      setBoards(found)
+      // ESPN leaves some ranks off the player page (all of college basketball,
+      // unqualified rate stats); look those up on the leaderboard itself.
+      for (const t of player.tiles) {
+        if (!found[t.key] || usesSummaryRank(player.sport, t)) continue
+        findRank(found[t.key], player.id)
+          .then((r) => !cancelled && setFoundRanks((prev) => ({ ...prev, [t.key]: r })))
+          .catch(() => {})
+      }
     })
     return () => {
       cancelled = true
     }
   }, [player])
+
+  useEffect(() => {
+    if (!player) return
+    const controller = new AbortController()
+    fetchCareer(player.sport, player.id, player.positionAbbr, { signal: controller.signal })
+      .then((c) => {
+        setCareer(c)
+        setCareerTab(c?.defaultKey ?? null)
+      })
+      .catch(() => {})
+    return () => controller.abort()
+  }, [player])
+
+  // Rank shown on a tile: ESPN's own, or one we looked up.
+  const tileRank = (t) => (usesSummaryRank(player.sport, t) ? { rank: formatRank(t.rankFull) } : foundRanks[t.key] || null)
+
+  const openLeaderboard = (t) => {
+    const tiles = Object.fromEntries(
+      player.tiles.filter((x) => boards[x.key]).map((x) => [x.key, { value: x.value, ...(tileRank(x) || {}) }]),
+    )
+    onOpenLeaderboard({
+      board: boards[t.key],
+      position: player.positionAbbr,
+      player: { id: player.id, name: player.name, headshot: player.headshot || ref.headshot },
+      tiles,
+    })
+  }
+  const activeCareer = career?.tabs.find((c) => c.key === careerTab) || career?.tabs[0]
 
   const trend = useMemo(() => trendFor(player), [player])
   const colors = heroColors(player?.team?.color)
@@ -164,20 +211,27 @@ export function PlayerPage({ player: ref, onBack, onOpenTeam, onOpenPlayer }) {
                 <h2 className="pg-section-title">{player.seasonLabel || 'This season'}</h2>
                 <div className="pp-tiles">
                   {player.tiles.map((t) => {
+                    const board = boards[t.key]
+                    const r = board ? tileRank(t) : null
+                    const rankText = r?.rank ? `${r.rank} in ${SPORT_LABEL[player.sport]}` : r?.reason
                     const body = (
                       <>
                         <div className="pp-tile-label">{t.label}</div>
                         <div className="pp-tile-value">{t.value}</div>
-                        {t.rank && <div className="pp-tile-rank">{t.rank} in league</div>}
+                        {board ? (
+                          rankText && <div className={`pp-tile-rank ${r?.rank ? '' : 'muted'}`}>{rankText}</div>
+                        ) : (
+                          t.rank && <div className="pp-tile-rank">{t.rank} in league</div>
+                        )}
                       </>
                     )
-                    return boards[t.key] ? (
+                    return board ? (
                       <button
                         key={t.key}
                         type="button"
                         className="pg-card pp-tile clickable"
-                        onClick={() => setOpenTile(t)}
-                        aria-label={`${t.label} ${t.value}${t.rank ? `, ${t.rank} in league` : ''}. Show league leaderboard`}
+                        onClick={() => openLeaderboard(t)}
+                        aria-label={`${t.label} ${t.value}${rankText ? `, ${rankText}` : ''}. Show league leaderboard`}
                       >
                         {body}
                       </button>
@@ -230,6 +284,63 @@ export function PlayerPage({ player: ref, onBack, onOpenTeam, onOpenPlayer }) {
               {trend && <TrendChart trend={trend} />}
             </div>
 
+            {activeCareer && (
+              <section className="pg-card">
+                <div className="pg-card-head">
+                  <h2 className="pg-card-title">Career</h2>
+                  {career.tabs.length > 1 && (
+                    <div className="pp-career-tabs" role="tablist" aria-label="Career stat type">
+                      {career.tabs.map((c) => (
+                        <button
+                          key={c.key}
+                          type="button"
+                          role="tab"
+                          aria-selected={c.key === activeCareer.key}
+                          className={c.key === activeCareer.key ? 'active' : ''}
+                          onClick={() => setCareerTab(c.key)}
+                        >
+                          {c.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="pg-table-scroll">
+                  <table className="pg-table">
+                    <thead>
+                      <tr>
+                        <th className="left">Season</th>
+                        <th className="left">Team</th>
+                        {activeCareer.labels.map((l, i) => <th key={i}>{l}</th>)}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activeCareer.rows.map((r, n) => (
+                        <tr key={`${r.season}-${r.team}-${n}`} className={r.subtotal ? 'pp-career-subtotal' : ''}>
+                          <td className="left strong">{r.season}</td>
+                          <td className="left">
+                            <span className="pp-career-team">
+                              {r.logo && <img src={r.logo} alt="" loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none' }} />}
+                              {r.team}
+                            </span>
+                          </td>
+                          {r.stats.map((s, i) => <td key={i}>{s}</td>)}
+                        </tr>
+                      ))}
+                    </tbody>
+                    {activeCareer.totals && (
+                      <tfoot>
+                        <tr>
+                          <td className="left strong" colSpan={2}>Career</td>
+                          {activeCareer.totals.map((s, i) => <td key={i} className="strong">{s}</td>)}
+                        </tr>
+                      </tfoot>
+                    )}
+                  </table>
+                </div>
+              </section>
+            )}
+
             {player.splits && (
               <section className="pg-card">
                 <h2 className="pg-card-title">Splits</h2>
@@ -258,18 +369,6 @@ export function PlayerPage({ player: ref, onBack, onOpenTeam, onOpenPlayer }) {
               <div className="info">No stats yet this season.</div>
             )}
           </main>
-          {openTile && boards[openTile.key] && (
-            <LeaderboardModal
-              board={boards[openTile.key]}
-              player={{ ...player, headshot: player.headshot || ref.headshot }}
-              playerTile={openTile}
-              onClose={() => setOpenTile(null)}
-              onOpenPlayer={(p) => {
-                setOpenTile(null)
-                onOpenPlayer?.(p)
-              }}
-            />
-          )}
         </>
       )}
     </div>

@@ -82,26 +82,71 @@ function pickCategory(categories, stat, position) {
   return matches.find((c) => c.name !== 'scoring' && c.name !== 'general') || matches[0]
 }
 
+function cfbHasBoard(stat, position) {
+  if (!CFB_CORE[stat]) return false
+  // A QB's sacks/interceptions are taken/thrown; the core board is defense.
+  return !(position === 'QB' && (stat === 'sacks' || stat === 'interceptions'))
+}
+
+function toBoard(sport, cat, i, year) {
+  return {
+    sport,
+    stat: cat.names[i],
+    category: cat.name,
+    label: cat.displayNames[i] || cat.labels[i] || cat.names[i],
+    abbreviation: cat.labels[i] || null,
+    description: cat.descriptions[i] || null,
+    year,
+  }
+}
+
 /** Can this stat be opened as a leaderboard for this player? */
 export async function leaderboardFor(sport, stat, position) {
-  if (sport === 'college-football') {
-    if (!CFB_CORE[stat]) return null
-    // A QB's sacks/interceptions are taken/thrown; the core board is defense.
-    if (position === 'QB' && (stat === 'sacks' || stat === 'interceptions')) return null
-  }
+  if (sport === 'college-football' && !cfbHasBoard(stat, position)) return null
   const meta = await leaderMeta(sport)
   const cat = pickCategory(meta.categories, stat, position)
   if (!cat) return null
-  const i = cat.names.indexOf(stat)
-  return {
-    sport,
-    stat,
-    category: cat.name,
-    label: cat.displayNames[i] || cat.labels[i] || stat,
-    abbreviation: cat.labels[i] || null,
-    description: cat.descriptions[i] || null,
-    year: meta.year,
+  return toBoard(sport, cat, cat.names.indexOf(stat), meta.year)
+}
+
+// Stats that make poor standalone leaderboards (games played, fumbles lost…).
+const SKIP_TAB = /^gamesPlayed$|^games$|Fumbles|FumblesLost|^gamesStarted$|flagrant|ejections/i
+
+/** Every board in the same category as `board`, for the stat tabs. */
+export async function boardsInCategory(board, position) {
+  const meta = await leaderMeta(board.sport)
+  const cat = meta.categories.find((c) => c.name === board.category)
+  if (!cat) return [board]
+  return cat.names
+    .map((n, i) => ({ n, i }))
+    .filter(({ n }) => n === board.stat || !SKIP_TAB.test(n))
+    .filter(({ n }) => board.sport !== 'college-football' || cfbHasBoard(n, position))
+    .map(({ i }) => toBoard(board.sport, cat, i, meta.year))
+}
+
+/** "Tied-9th" → "T-9th"; 18 → "18th". */
+export function formatRank(rank) {
+  if (rank == null) return null
+  if (typeof rank === 'string') return rank.replace(/^Tied-/i, 'T-')
+  const n = Number(rank)
+  const suffix = n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th'
+  return `${n}${suffix}`
+}
+
+/**
+ * The player's rank for a board when ESPN's player page doesn't give one
+ * (all of college basketball, for example). Looks deeper than the page does.
+ * Returns { rank: "T-4th" } or { rank: null, reason }.
+ */
+export async function findRank(board, athleteId, { signal } = {}) {
+  const deep = board.sport === 'college-football' ? 50 : 200
+  const data = await fetchLeaderboard(board, { limit: deep, signal })
+  const me = data.rows.find((r) => r.athleteId === String(athleteId))
+  if (me) {
+    const tied = data.rows.filter((r) => r.rank === me.rank).length > 1
+    return { rank: `${tied ? 'T-' : ''}${formatRank(me.rank)}` }
   }
+  return { rank: null, reason: data.qualified ? 'Not qualified' : `Outside top ${deep}` }
 }
 
 function athleteRow(a) {
