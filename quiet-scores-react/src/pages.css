@@ -426,3 +426,14 @@
     color: #fff; font-size: 0.68rem; font-weight: 800; font-variant-numeric: tabular-nums;
     box-shadow: 0 0 0 2px var(--bg-card), 0 1px 4px rgba(0, 0, 0, 0.35);
 }
+
+/* Player page: game log + trend chart side by side, same height */
+.pg-two-col.pp-log-row { align-items: stretch; }
+.pp-log-row > .pp-trend { display: flex; flex-direction: column; }
+.pp-log-row > .pp-trend .pp-bars { flex: 1 1 auto; height: auto; min-height: 170px; }
+.pp-log-groups th {
+    padding-bottom: 2px; border-bottom: 1px solid var(--border-primary);
+    font-size: 0.62rem; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; text-align: center;
+    color: var(--text-muted);
+}
+.pp-log-groups th:empty { border-bottom: none; }

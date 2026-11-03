@@ -31,6 +31,24 @@ function usesSummaryRank(sport, tile, board) {
   return Boolean(tile.rankFull) && sport !== 'college-basketball' && !board?.ownRank && !board?.aliased
 }
 
+// A column is worth showing if any game has something in it ("0", "0.0" and
+// "-" in every game means the player doesn't do that: a WR's rushing).
+const EMPTY_CELL = /^(?:0|0\.0+|-|–|0-0|)$/
+function gameLogColumns(log) {
+  const cols = log.labels.map((_, i) => i).filter((i) => log.rows.some((r) => !EMPTY_CELL.test(String(r.stats[i] ?? '').trim())))
+  const visible = cols.length ? cols : log.labels.map((_, i) => i)
+  // Group labels over the kept columns, only when more than one group is left.
+  let start = 0
+  const groups = (log.groups || [])
+    .map((g) => {
+      const span = visible.filter((i) => i >= start && i < start + g.count).length
+      start += g.count
+      return { label: g.label, span }
+    })
+    .filter((g) => g.span > 0)
+  return { visible, groups: groups.length > 1 ? groups : null }
+}
+
 function formatDate(iso) {
   if (!iso) return ''
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
@@ -162,6 +180,7 @@ export function PlayerPage({ player: ref, onBack, onOpenTeam, onOpenLeaderboard 
   }
 
   const trend = useMemo(() => trendFor(player), [player])
+  const logCols = useMemo(() => (player?.log ? gameLogColumns(player.log) : null), [player])
   const colors = heroColors(player?.team?.color)
 
   return (
@@ -298,7 +317,7 @@ export function PlayerPage({ player: ref, onBack, onOpenTeam, onOpenLeaderboard 
               </section>
             )}
 
-            <div className="pg-two-col">
+            <div className="pg-two-col pp-log-row">
               {player.log && (
                 <section className="pg-card pg-col-main">
                   <div className="pg-card-head">
@@ -308,11 +327,21 @@ export function PlayerPage({ player: ref, onBack, onOpenTeam, onOpenLeaderboard 
                   <div className="pg-table-scroll">
                     <table className="pg-table">
                       <thead>
+                        {logCols.groups && (
+                          <tr className="pp-log-groups">
+                            <th colSpan={3} />
+                            {logCols.groups.map((g) => (
+                              <th key={g.label} colSpan={g.span}>{g.label}</th>
+                            ))}
+                          </tr>
+                        )}
                         <tr>
                           <th className="left">Date</th>
                           <th className="left">Opp</th>
                           <th className="left">Result</th>
-                          {player.log.labels.map((l, i) => <th key={i}>{l}</th>)}
+                          {logCols.visible.map((i) => (
+                            <th key={i} title={player.log.displayNames[i] || undefined}>{player.log.labels[i]}</th>
+                          ))}
                         </tr>
                       </thead>
                       <tbody>
@@ -323,7 +352,7 @@ export function PlayerPage({ player: ref, onBack, onOpenTeam, onOpenLeaderboard 
                             <td className="left">
                               <b className={r.result === 'W' ? 'pg-win' : r.result === 'L' ? 'pg-loss' : ''}>{r.result}</b> {r.score}
                             </td>
-                            {r.stats.map((s, i) => <td key={i}>{s}</td>)}
+                            {logCols.visible.map((i) => <td key={i}>{r.stats[i]}</td>)}
                           </tr>
                         ))}
                       </tbody>
