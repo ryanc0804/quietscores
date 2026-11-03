@@ -237,6 +237,7 @@ export function SearchPalette({ onClose, onOpenTeam, onOpenPlayer, favorites = [
                     aria-selected={isActive}
                     data-active={isActive}
                     className={`sp-row ${isActive ? 'active' : ''}`}
+                    style={{ '--i': Math.min(i, 10) }}
                     onMouseMove={() => setActive(i)}
                     onClick={() => choose(item)}
                   >
