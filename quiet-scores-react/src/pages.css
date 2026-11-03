@@ -170,10 +170,8 @@
     font-size: clamp(2.4rem, 6vw, 4rem); line-height: 0.95; font-weight: 700; letter-spacing: 0.2px; color: #fff;
 }
 .pg-next {
+    /* Plain text on the header colour, like the player header's info. */
     display: flex; flex-direction: column; gap: 2px;
-    padding: 12px 16px; border-radius: 14px;
-    background: rgba(0, 0, 0, 0.28); border: 1px solid rgba(255, 255, 255, 0.16);
-    min-width: 210px;
 }
 .pg-next-label { font-size: 0.68rem; font-weight: 800; letter-spacing: 1.1px; text-transform: uppercase; color: rgba(255, 255, 255, 0.75); }
 .pg-next-name { font-size: 1.05rem; font-weight: 800; }
@@ -316,8 +314,9 @@
 }
 .pg-pill-link:hover { background: rgba(255, 255, 255, 0.12); }
 .pg-pill-link img { width: 22px; height: 22px; object-fit: contain; background: #fff; border-radius: 50%; padding: 2px; }
-.pp-bio { margin: 22px 0 0; display: flex; flex-wrap: wrap; gap: 10px; }
-.pp-bio > div { padding: 9px 14px; border-radius: 10px; background: rgba(0, 0, 0, 0.22); border: 1px solid rgba(255, 255, 255, 0.12); }
+.pp-bio { margin: 24px 0 0; display: flex; flex-wrap: wrap; gap: 14px 34px; }
+/* Plain label/value pairs on the header colour; no boxes. */
+.pp-bio > div { min-width: 0; }
 .pp-bio dt { font-size: 0.66rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: rgba(255, 255, 255, 0.72); }
 .pp-bio dd { margin: 2px 0 0; font-size: 0.92rem; font-weight: 700; }
 
