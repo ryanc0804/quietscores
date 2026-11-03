@@ -630,15 +630,6 @@ html, body { background: var(--bg-primary); color: var(--text-primary); }
     border: none; background: transparent; color: var(--text-muted); font-size: 1.4rem; cursor: pointer; border-radius: 8px;
 }
 .auth-close:hover { background: rgba(var(--overlay), 0.06); color: var(--text-primary); }
-.auth-google {
-    width: 100%; margin-top: 12px; height: 42px;
-    display: inline-flex; align-items: center; justify-content: center; gap: 10px;
-    border-radius: 10px; border: 1px solid var(--border-secondary);
-    background: var(--bg-card); color: var(--text-primary); font-weight: 700; font-size: 0.9rem; cursor: pointer;
-}
-.auth-google:hover { background: rgba(var(--overlay), 0.05); }
-.auth-divider { display: flex; align-items: center; gap: 10px; margin: 16px 0; color: var(--text-muted); font-size: 0.75rem; }
-.auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: var(--border-primary); }
 .auth-form { display: flex; flex-direction: column; gap: 12px; }
 .auth-form label { display: flex; flex-direction: column; gap: 5px; font-size: 0.78rem; font-weight: 700; color: var(--text-secondary); }
 .auth-form input {
@@ -651,12 +642,7 @@ html, body { background: var(--bg-primary); color: var(--text-primary); }
     height: 42px; border: none; border-radius: 10px; margin-top: 4px;
     background: var(--chip-active-bg); color: var(--chip-active-fg); font-weight: 800; font-size: 0.9rem; cursor: pointer;
 }
-.auth-primary:disabled, .auth-secondary:disabled, .auth-google:disabled { opacity: 0.6; cursor: default; }
-.auth-secondary {
-    height: 38px; border-radius: 10px; border: 1px dashed var(--border-secondary);
-    background: transparent; color: var(--text-secondary); font-weight: 700; font-size: 0.82rem; cursor: pointer;
-}
-.auth-secondary:hover { color: var(--text-primary); border-style: solid; }
+.auth-primary:disabled { opacity: 0.6; cursor: default; }
 .auth-error { font-size: 0.8rem; color: var(--live); background: rgba(229, 72, 77, 0.1); padding: 8px 10px; border-radius: 8px; }
 .auth-notice { font-size: 0.8rem; color: var(--positive); background: rgba(53, 198, 90, 0.1); padding: 8px 10px; border-radius: 8px; }
 .auth-footer {

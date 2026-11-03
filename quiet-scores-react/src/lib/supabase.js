@@ -14,7 +14,7 @@ export const supabase = isAuthConfigured
       auth: {
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: true, // handles email-link and Google redirects
+        detectSessionInUrl: true, // handles email-confirmation and password-reset links
         flowType: 'pkce',
       },
     })
