@@ -4,7 +4,7 @@ import { heroColors } from './heroColor'
 import { SummarySkeleton } from '../components/Skeletons'
 import { findRank, formatRank, leaderboardFor } from '../lib/leaders'
 import { fetchCareer } from '../lib/career'
-import { PlayerGameStrip } from '../components/PlayerGameStrip'
+import { PlayerLastGame } from '../components/PlayerLastGame'
 
 function Headshot({ src, name }) {
   const [failed, setFailed] = useState(false)
@@ -182,7 +182,7 @@ export function PlayerPage({ player: ref, onBack, onOpenTeam, onOpenLeaderboard 
                   </div>
                 </div>
               </div>
-              {player.bio.length > 0 && (
+              {(player.bio.length > 0 || player.log?.rows?.length > 0) && (
                 <dl className="pp-bio">
                   {player.bio.map((b) => (
                     <div key={b.label}>
@@ -190,13 +190,13 @@ export function PlayerPage({ player: ref, onBack, onOpenTeam, onOpenLeaderboard 
                       <dd>{b.value}</dd>
                     </div>
                   ))}
+                  <PlayerLastGame player={player} />
                 </dl>
               )}
             </div>
           </section>
 
           <main className="pg-wrap pg-main">
-            <PlayerGameStrip player={player} />
             {player.tiles.length > 0 && (
               <section>
                 <h2 className="pg-section-title">{player.seasonLabel || 'This season'}</h2>
