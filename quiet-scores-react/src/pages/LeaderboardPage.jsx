@@ -44,9 +44,19 @@ export function LeaderboardPage({ view, onBack, onOpenPlayer, onChangeBoard }) {
     return () => controller.abort()
   }, [board])
 
-  // Keep the active tab visible in the scrolling tab strip.
+  // Open on the player: once the list loads (and on each tab switch), scroll
+  // to his row if he's past the first few, which are already on screen.
+  const myRank = data?.rows.find((r) => r.athleteId === player?.id || (player?.mlbId && r.mlbId === player.mlbId))?.rank
   useEffect(() => {
-    tabsRef.current?.querySelector('.active')?.scrollIntoView({ block: 'nearest', inline: 'center' })
+    if (myRank > 8) meRef.current?.scrollIntoView({ block: 'center' })
+  }, [data, myRank])
+
+  // Keep the active tab visible in the scrolling tab strip.
+  // (Scrolls only the strip sideways; scrollIntoView would also move the page.)
+  useEffect(() => {
+    const strip = tabsRef.current
+    const tab = strip?.querySelector('.active')
+    if (tab) strip.scrollLeft = tab.offsetLeft - strip.clientWidth / 2 + tab.offsetWidth / 2
   }, [boards, board])
 
   const isMe = (r) => r.athleteId === player?.id || (player?.mlbId && r.mlbId === player.mlbId)
@@ -63,14 +73,15 @@ export function LeaderboardPage({ view, onBack, onOpenPlayer, onChangeBoard }) {
   return (
     <div className="pg-page">
       <div className="pg-wrap lb-page">
-        {/* Same spot and style as the Back on player/team pages. */}
-        <button type="button" className="pg-back lb-back" onClick={onBack}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
-          Back
-        </button>
-
         <header className="lb-head">
-          <span className="lb-eyebrow">{[SPORT_LABEL[board.sport], board.year && `${seasonName(board)} regular season`, 'League leaders'].filter(Boolean).join(' · ')}</span>
+          {/* Back on its own row like player/team pages, but compact. */}
+          <button type="button" className="pg-back lb-back" onClick={onBack}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
+            Back
+          </button>
+          <div className="lb-topline">
+            <span className="lb-eyebrow">{[SPORT_LABEL[board.sport], board.year && `${seasonName(board)} regular season`, 'League leaders'].filter(Boolean).join(' · ')}</span>
+          </div>
           <h1 className="lb-title">{board.label}</h1>
           {board.description && <p className="lb-desc">{board.description}</p>}
           {mine && mine.rank > 8 && (

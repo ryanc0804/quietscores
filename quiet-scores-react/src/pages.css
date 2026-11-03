@@ -343,18 +343,19 @@
 /* League leaderboard page */
 /* Full page width like player/team pages (so Back lines up); the list itself
    stays a readable width. */
-.lb-page { padding-top: 12px; padding-bottom: 48px; }
-.lb-page > :not(.lb-back) { max-width: 760px; }
-.pg-back.lb-back { color: var(--text-secondary); }
+.lb-page { padding-top: 14px; padding-bottom: 48px; }
+.lb-page > * { max-width: 760px; }
+.lb-topline { display: block; }
+.pg-back.lb-back { display: flex; margin: 0 0 8px; padding: 4px 0; color: var(--text-secondary); }
 .pg-back.lb-back:hover { color: var(--text-primary); }
 .lb-head { margin: 0 0 16px; }
 .lb-eyebrow { font-size: 0.7rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted); }
-.lb-title { margin: 4px 0 0; font-family: 'Barlow Condensed', 'Inter', sans-serif; font-size: 2.4rem; font-weight: 700; line-height: 1.05; }
+.lb-title { margin: 6px 0 0; font-family: 'Barlow Condensed', 'Inter', sans-serif; font-size: 2.4rem; font-weight: 700; line-height: 1.05; }
 .lb-desc { margin: 6px 0 0; font-size: 0.85rem; color: var(--text-secondary); }
 .lb-tabs, .pp-career-tabs {
     display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px;
 }
-.lb-tabs { margin-bottom: 14px; }
+.lb-tabs { margin-bottom: 14px; position: relative; }
 .lb-tabs::-webkit-scrollbar, .pp-career-tabs::-webkit-scrollbar { display: none; }
 .lb-tabs button, .pp-career-tabs button {
     flex: none; padding: 7px 12px; border-radius: 999px; cursor: pointer;
