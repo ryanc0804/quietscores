@@ -2406,7 +2406,8 @@ function App() {
       <div className="site-header">
         <div className="header-left">
           <div className="header-logo-group" onClick={handleBackToScores} style={{ cursor: 'pointer' }}>
-            <h1>Quiet Scores</h1>
+            <img className="header-logo" src="/logo-header.png" alt="" width="32" height="32" />
+            <h1>Scores n Stats</h1>
           </div>
         </div>
 
