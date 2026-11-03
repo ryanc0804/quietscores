@@ -6,8 +6,10 @@
 // each player's ESPN id, and returns JSON. Vercel's CDN caches the response
 // (see Cache-Control), so nflverse is fetched at most every 30 minutes.
 //
-// In dev, vite.config.js serves this same handler at /api/nflverse.
-// Lives in quiet-scores-react/api because that folder is the Vercel project root.
+// In dev, quiet-scores-react/vite.config.js serves this same handler at /api/nflverse.
+// Lives in the repo-root api/ because the Vercel project's root directory is the
+// repo root (vercel.json there builds quiet-scores-react). .mjs because the root
+// package.json isn't "type": "module".
 import { Buffer } from 'node:buffer'
 import { gunzipSync } from 'node:zlib'
 

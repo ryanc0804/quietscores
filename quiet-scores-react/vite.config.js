@@ -9,7 +9,8 @@ function vercelApi() {
     name: 'vercel-api',
     configureServer(server) {
       server.middlewares.use('/api/nflverse', async (req, res) => {
-        const { default: handler } = await server.ssrLoadModule('/api/nflverse.js')
+        // The function lives in the repo-root api/ (the Vercel project root).
+        const { default: handler } = await import(new URL('../api/nflverse.mjs', import.meta.url).href)
         req.query = Object.fromEntries(new URL(req.originalUrl || req.url, 'http://localhost').searchParams)
         await handler(req, res)
       })
