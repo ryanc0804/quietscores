@@ -27,6 +27,8 @@
     cursor: pointer;
 }
 .search-trigger:hover { color: var(--text-primary); background: rgba(var(--overlay), 0.06); }
+.search-trigger { transition: transform 120ms ease-out, background 150ms ease, color 150ms ease; }
+.search-trigger:active { transform: scale(0.95); }
 .search-trigger kbd {
     font: inherit; font-size: 0.7rem; line-height: 1;
     padding: 2px 6px; border-radius: 5px; border: 1px solid var(--border-secondary); color: var(--text-muted);
@@ -461,4 +463,13 @@
 @media (prefers-reduced-motion: reduce) {
     .sp-backdrop, .sp-dialog, .sp-row { animation: none; }
     .pct-bubble { transition: none; }
+}
+
+/* Grown out of the Search button: the JS animation moves/scales the panel,
+   so skip the CSS drop-in and fade the contents in once it has some size. */
+.sp-dialog.from-button { animation: none; }
+.sp-dialog.from-button > * { animation: sp-fade 180ms ease-out 110ms both; }
+@media (prefers-reduced-motion: reduce) {
+    .sp-dialog.from-button > * { animation: none; }
+    .search-trigger:active { transform: none; }
 }

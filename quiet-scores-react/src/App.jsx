@@ -1994,6 +1994,8 @@ function App() {
   // Each entry is { type: 'game' | 'team' | 'player' | 'leaders', value }.
   const [viewStack, setViewStack] = useState([])
   const [searchOpen, setSearchOpen] = useState(false)
+  // The header button's box when search is opened from it (the panel grows out of it).
+  const [searchOrigin, setSearchOrigin] = useState(null)
   const topView = viewStack[viewStack.length - 1] || null
   const selectedGame = topView?.type === 'game' ? topView.value : null
   const selectedTeam = topView?.type === 'team' ? topView.value : null
@@ -2032,6 +2034,7 @@ function App() {
       const typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target?.isContentEditable
       if ((e.key === '/' && !typing && !e.metaKey && !e.ctrlKey && !e.altKey) || ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k')) {
         e.preventDefault()
+        setSearchOrigin(null)
         setSearchOpen(true)
       }
     }
@@ -2461,7 +2464,12 @@ function App() {
         </div>
 
         <div className="header-right">
-          <SearchButton onOpen={() => setSearchOpen(true)} />
+          <SearchButton
+            onOpen={(rect) => {
+              setSearchOrigin(rect)
+              setSearchOpen(true)
+            }}
+          />
           <AccountButton themeMode={themeMode} onThemeChange={setThemeMode} />
         </div>
       </div>
@@ -2474,6 +2482,7 @@ function App() {
 
       {searchOpen && (
         <SearchPalette
+          origin={searchOrigin}
           onClose={() => setSearchOpen(false)}
           onOpenTeam={handleOpenTeamPage}
           onOpenPlayer={handleOpenPlayer}
