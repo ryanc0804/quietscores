@@ -6,6 +6,7 @@ import { findRank, formatRank, isCurrentSeason, leaderboardFor, seasonYear } fro
 import { fetchAdvanced } from '../lib/advanced'
 import { fetchCareer } from '../lib/career'
 import { PlayerLastGame } from '../components/PlayerLastGame'
+import { PercentileTrack } from '../components/PercentileBars'
 
 function Headshot({ src, name }) {
   const [failed, setFailed] = useState(false)
@@ -275,16 +276,18 @@ export function PlayerPage({ player: ref, onBack, onOpenTeam, onOpenLeaderboard 
                 <div className="pp-tiles">
                   {advanced.tiles.map((t) => {
                     const rankText = t.rank ? `${t.rank} in ${SPORT_LABEL[player.sport]}` : t.reason
+                    const pct = Number.isFinite(t.percentile) ? `, ${t.percentile}th percentile` : ''
                     const body = (
                       <>
                         <div className="pp-tile-label">{t.label}</div>
                         <div className="pp-tile-value">{t.value}</div>
                         {rankText && <div className={`pp-tile-rank ${t.rank ? '' : 'muted'}`}>{rankText}</div>}
+                        <PercentileTrack percentile={t.percentile} />
                       </>
                     )
                     return t.board ? (
                       <button key={t.key} type="button" className="pg-card pp-tile clickable" title={t.desc || undefined}
-                        onClick={() => openAdvancedBoard(t)} aria-label={`${t.label} ${t.value}${rankText ? `, ${rankText}` : ''}. Show league leaderboard`}>
+                        onClick={() => openAdvancedBoard(t)} aria-label={`${t.label} ${t.value}${rankText ? `, ${rankText}` : ''}${pct}. Show league leaderboard`}>
                         {body}
                       </button>
                     ) : (

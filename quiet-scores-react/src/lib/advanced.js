@@ -58,6 +58,17 @@ function rankText(list, match) {
   return `${tied ? 'T-' : ''}${formatRank(me.rank)}`
 }
 
+/**
+ * Percentile (0–100) within a ranked list, Savant-style: the share of the
+ * group this player ranks ahead of. 1st of 135 → 100, last → 0. Lists are
+ * already ordered best-first, so lower-is-better stats need no flipping.
+ */
+function percentileOf(list, match) {
+  const me = list.find(match)
+  if (!me || list.length < 2) return null
+  return Math.round((100 * (list.length - me.rank)) / (list.length - 1))
+}
+
 /* ------------------------------------------------------------------ MLB */
 
 const mlbHeadshot = (id) =>
@@ -220,8 +231,9 @@ async function mlbAdvanced(player, year) {
         if (!Number.isFinite(raw)) return null
         const board = { sport: 'mlb', kind: 'mlb', group, stat: def.key, label: def.name, abbreviation: def.label, description: def.desc, year }
         const list = await mlbBoardRows(board).catch(() => [])
-        const rank = rankText(list, (r) => r.mlbId === mlbId)
-        return { key: def.key, label: def.label, value: def.fmt(raw), desc: def.desc, board, rank, reason: rank ? null : 'Not qualified' }
+        const match = (r) => r.mlbId === mlbId
+        const rank = rankText(list, match)
+        return { key: def.key, label: def.label, value: def.fmt(raw), desc: def.desc, board, rank, percentile: percentileOf(list, match), reason: rank ? null : 'Not qualified' }
       }),
     )
   ).filter(Boolean)
@@ -330,8 +342,9 @@ async function nflAdvanced(player, year) {
       const raw = def.calc(core)
       if (!Number.isFinite(raw) || !(core[def.vol] > 0)) continue
       const board = { sport: 'nfl', kind: 'nfl-derived', group: def.cat, stat: key, label: def.name, abbreviation: def.label, description: def.desc, year }
-      const rank = rankText(await nflDerivedRows(board).catch(() => []), mine)
-      tiles.push({ key, label: def.label, value: def.fmt(raw), desc: def.desc, board, rank, reason: rank ? null : 'Not qualified' })
+      const list = await nflDerivedRows(board).catch(() => [])
+      const rank = rankText(list, mine)
+      tiles.push({ key, label: def.label, value: def.fmt(raw), desc: def.desc, board, rank, percentile: percentileOf(list, mine), reason: rank ? null : 'Not qualified' })
     } else if (NFL_NATIVE[key]) {
       const def = NFL_NATIVE[key]
       const raw = num(core[key])
@@ -340,6 +353,7 @@ async function nflAdvanced(player, year) {
       // list (one shared request), ranked by this stat.
       const board = await leaderboardFor('nfl', key, player.positionAbbr).catch(() => null)
       let rank = null
+      let percentile = null
       if (board) {
         const vol = NFL_VOLUME[board.category] || key
         let rows = await nflCategoryRows(board.category, vol).catch(() => [])
@@ -348,9 +362,11 @@ async function nflAdvanced(player, year) {
           const teamGames = Math.max(1, ...rows.map((r) => r.s.gamesPlayed || 0))
           rows = rows.filter((r) => r.s[vol] >= def.minPerGame * teamGames)
         }
-        rank = rankText(ranked(rows.map((r) => ({ ...r, raw: num(r.s[key]) }))), mine)
+        const list = ranked(rows.map((r) => ({ ...r, raw: num(r.s[key]) })))
+        rank = rankText(list, mine)
+        percentile = percentileOf(list, mine)
       }
-      tiles.push({ key, label: def.label, value: def.fmt(raw), board, rank })
+      tiles.push({ key, label: def.label, value: def.fmt(raw), board, rank, percentile })
     }
   }
   return tiles.length ? { tiles, source: 'ESPN' } : null
@@ -465,8 +481,9 @@ async function nflverseAdvanced(player, year) {
     const raw = def.calc(me)
     if (!Number.isFinite(raw)) continue
     const board = { sport: 'nfl', kind: 'nflverse', group: def.group, stat: key, label: def.name, abbreviation: def.label, description: def.desc, year }
-    const rank = rankText(await nflverseRows(board), mine)
-    tiles.push({ key, label: def.label, value: def.fmt(raw), desc: def.desc, board, rank, reason: rank ? null : 'Not qualified' })
+    const list = await nflverseRows(board)
+    const rank = rankText(list, mine)
+    tiles.push({ key, label: def.label, value: def.fmt(raw), desc: def.desc, board, rank, percentile: percentileOf(list, mine), reason: rank ? null : 'Not qualified' })
   }
   if (role === 'QB') {
     const list = await qbrList(year).catch(() => [])
@@ -475,8 +492,9 @@ async function nflverseAdvanced(player, year) {
       const raw = num(row?.stats?.[def.field])
       if (!Number.isFinite(raw)) continue
       const board = { sport: 'nfl', kind: 'qbr', group: 'qbr', stat: key, label: def.name, abbreviation: def.label, description: def.desc, year }
-      const rank = rankText(await qbrRows(board), mine)
-      tiles.push({ key, label: def.label, value: def.fmt(raw), desc: def.desc, board, rank, reason: rank ? null : 'Not qualified' })
+      const list = await qbrRows(board)
+      const rank = rankText(list, mine)
+      tiles.push({ key, label: def.label, value: def.fmt(raw), desc: def.desc, board, rank, percentile: percentileOf(list, mine), reason: rank ? null : 'Not qualified' })
     }
   }
   return tiles.length ? { tiles, source: role === 'QB' ? 'nflverse · ESPN QBR' : 'nflverse', updated } : null

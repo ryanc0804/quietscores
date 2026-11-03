@@ -415,3 +415,14 @@
 .pp-bio-game dt.live { color: #fff; }
 .pp-bio-game dt.live::before { content: '●'; margin-right: 5px; color: #ff5a5f; }
 .pp-adv-source { margin-left: 8px; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.3px; text-transform: none; color: var(--text-muted); }
+
+/* Advanced tiles: Savant-style percentile track along the bottom */
+.pp-tile .pct-track { position: relative; display: block; height: 4px; margin: 18px 12px 8px; border-radius: 999px; background: rgba(var(--overlay), 0.1); }
+.pct-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; opacity: 0.5; }
+.pct-bubble {
+    position: absolute; top: 50%; transform: translate(-50%, -50%);
+    width: 24px; height: 24px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 0.68rem; font-weight: 800; font-variant-numeric: tabular-nums;
+    box-shadow: 0 0 0 2px var(--bg-card), 0 1px 4px rgba(0, 0, 0, 0.35);
+}
