@@ -6984,3 +6984,9 @@ body.pwa-mode {
     padding: 0 12px;
     white-space: nowrap;
 }
+
+/* Header logo next to the site name */
+.header-logo-group { display: flex; align-items: center; gap: 9px; }
+.header-logo { width: 32px; height: 32px; border-radius: 8px; flex: none; }
+/* The logo sits beside the name now, so drop the old phone-layout indent. */
+.site-header .header-logo-group h1 { margin-left: 0 !important; }

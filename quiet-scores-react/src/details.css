@@ -599,7 +599,7 @@ html, body { background: var(--bg-primary); color: var(--text-primary); }
 }
 .account-dropdown button:hover { background: rgba(var(--overlay), 0.06); }
 .account-btn.signin-cta {
-    display: inline-flex; align-items: center; gap: 6px; padding: 0 14px;
+    display: inline-flex; align-items: center; gap: 6px; padding: 0 14px; white-space: nowrap; flex: none;
     border: 1px solid var(--accent-primary); color: var(--accent-primary); background: transparent;
 }
 .account-btn.signin-cta:hover { background: color-mix(in srgb, var(--accent-primary) 12%, transparent); }
@@ -668,7 +668,7 @@ html, body { background: var(--bg-primary); color: var(--text-primary); }
     color: var(--live); background: rgba(229, 72, 77, 0.1); padding: 8px 12px; border-radius: 8px;
 }
 @media (max-width: 480px) {
-    .account-btn.signin { padding: 0 10px; font-size: 0.75rem; }
+    .account-btn.signin, .account-btn.signin-cta { padding: 0 10px; font-size: 0.75rem; }
 }
 .team-page-container > .back-btn { align-self: flex-start; width: auto; }
 

@@ -1,21 +1,30 @@
 {
-  "name": "Quiet Scores - Live Sports Scores",
-  "short_name": "Quiet Scores",
-  "description": "Live sports scores for NFL, NBA, MLB, NHL, College Football, and College Basketball. Real-time updates, game summaries, and betting odds from ESPN.",
+  "name": "Scores n Stats",
+  "short_name": "Scores n Stats",
+  "description": "Live scores and stats for the NFL, NBA, MLB, NHL, college football, college basketball and soccer: game details, player pages, league leaderboards and advanced stats.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#000000",
+  "background_color": "#1f272a",
+  "theme_color": "#1f272a",
   "orientation": "portrait-primary",
   "scope": "/",
-  "categories": ["sports", "entertainment"],
+  "categories": [
+    "sports",
+    "entertainment"
+  ],
   "lang": "en-US",
   "icons": [
     {
-      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDE5MiAxOTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIiBmaWxsPSIjMDA3YmZmIi8+CjxwYXRoIGQ9Ik05NiA0OEM3My45MDg2IDQ4IDU2IDY1LjkwODYgNTYgODhWMTQ0QzU2IDE2Ni4wOTEgNzMuOTA4NiAxODQgOTYgMTg0QzExOC4wOTEgMTg0IDEzNiAxNjYuMDkxIDEzNiAxNDRWODhDMTM2IDY1LjkwODYgMTE4LjA5MSA0OCA5NiA0OFoiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik04MCA5NkgxMTJWMTA0SDgwVjk2WiIgZmlsbD0iIzAwN2JmZiIvPgo8cGF0aCBkPSJNODAgMTE2SDExMlYxMjRINzZWMTA0SDgwVjExNloiIGZpbGw9IiMwMDdiZmYiLz4KPHBhdGggZD0iTTgwIDEzNkgxMTJWMTQ0SDgwVjEzNloiIGZpbGw9IiMwMDdiZmYiLz4KPC9zdmc+",
+      "src": "/logo-192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }

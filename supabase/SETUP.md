@@ -24,9 +24,10 @@ keeps each user's favorites private.
 
 ## 3. Redirect URLs
 **Authentication → URL Configuration**
-- *Site URL*: `https://www.quietscores.com`
-- *Redirect URLs*: `https://www.quietscores.com/**`, `https://quietscores.com/**`,
-  `https://sportsdashboard.vercel.app/**` and `http://localhost:5173/**`.
+- *Site URL*: `https://www.scoresnstats.com`
+- *Redirect URLs*: `https://www.scoresnstats.com/**`, `https://scoresnstats.com/**`,
+  `https://sportsdashboard.vercel.app/**` and `http://localhost:5173/**` (the old
+  `quietscores.com` entries can stay: that domain redirects to scoresnstats.com).
 
 Sign-up confirmation and password-reset emails send people back to these URLs.
 
