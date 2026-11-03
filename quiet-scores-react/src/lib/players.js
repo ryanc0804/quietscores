@@ -162,7 +162,16 @@ function normalizePlayer(sport, a, overview, gamelog) {
       })
       .filter(Boolean)
       .sort((x, y) => new Date(y.date) - new Date(x.date))
-    if (rows.length) log = { season: seasonType?.displayName, labels: gamelog.labels, rows }
+    if (rows.length) {
+      log = {
+        season: seasonType?.displayName,
+        labels: gamelog.labels,
+        displayNames: gamelog.displayNames || [],
+        // Column groups, e.g. Receiving (6) · Rushing (5) · Fumbles (4).
+        groups: (gamelog.categories || []).map((c) => ({ label: c.displayName, count: c.count })),
+        rows,
+      }
+    }
   }
 
   // overview.nextGame is "Next Game", "Current Game" or "Previous Game";
@@ -195,6 +204,7 @@ function normalizePlayer(sport, a, overview, gamelog) {
     position: a.position?.displayName || a.position?.name || null,
     positionAbbr: a.position?.abbreviation || null,
     headshot: a.headshot?.href || null,
+    birthDate: a.displayDOB || null, // "26/4/1992"
     status: a.status?.name && a.status.name !== 'Active' ? a.status.name : null,
     injury: a.injuries?.[0]?.status || null,
     team,

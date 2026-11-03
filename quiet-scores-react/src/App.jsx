@@ -11,6 +11,7 @@ import { TeamPage } from './pages/TeamPage'
 import { PlayerPage } from './pages/PlayerPage'
 import { LeaderboardPage } from './pages/LeaderboardPage'
 import { FavoritesUpcoming, NextSlate } from './components/Upcoming'
+import { ConferenceBar } from './components/ConferenceBar'
 import { SearchButton, SearchPalette } from './components/SearchPalette'
 import {
   Section,
@@ -2298,10 +2299,30 @@ function App() {
   ) : (
     <>
       <div className="date-navigation">
-        <div className="week-display" onClick={toggleDatePicker} style={{ cursor: 'pointer' }}>
+        <div className="week-display">
           <div className="week-label" id="weekLabel">
             {weekLabel}
           </div>
+          {/* The native picker opens next to its input, so the (invisible) input
+              sits on top of the icon and the calendar drops down right there. */}
+          <span className="calendar-anchor">
+            <input
+              ref={dateInputRef}
+              type="date"
+              id="customDate"
+              className="calendar-input"
+              tabIndex={-1}
+              aria-hidden="true"
+              value={formatDateInputValue(currentDate)}
+              onChange={handleCustomDateChange}
+            />
+            <button type="button" className="calendar-btn" onClick={toggleDatePicker} aria-label="Pick a date" title="Pick a date">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="3" y="5" width="18" height="16" rx="2" />
+                <path d="M16 3v4M8 3v4M3 10h18" />
+              </svg>
+            </button>
+          </span>
         </div>
 
         <div className="week-buttons">
@@ -2328,39 +2349,10 @@ function App() {
           </button>
         </div>
 
-        <div className="date-picker" id="datePicker">
-          <input
-            ref={dateInputRef}
-            type="date"
-            id="customDate"
-            value={formatDateInputValue(currentDate)}
-            onChange={handleCustomDateChange}
-            style={{ display: 'none' }}
-          />
-        </div>
       </div>
 
       {isCollege && conferenceOptions.length > 0 && (
-        <div className="conference-bar" role="toolbar" aria-label="Filter by conference">
-          <button
-            className={`conf-chip ${selectedConference === 'all' ? 'active' : ''}`}
-            aria-pressed={selectedConference === 'all'}
-            onClick={() => setSelectedConference('all')}
-          >
-            All
-          </button>
-          {conferenceOptions.map((c) => (
-            <button
-              key={c.name}
-              className={`conf-chip ${selectedConference === c.name ? 'active' : ''}`}
-              aria-pressed={selectedConference === c.name}
-              onClick={() => setSelectedConference(c.name)}
-            >
-              {c.name}
-              <span className="conf-count">{c.count}</span>
-            </button>
-          ))}
-        </div>
+        <ConferenceBar options={conferenceOptions} selected={selectedConference} onSelect={setSelectedConference} />
       )}
 
       {syncError && <div className="sync-error" role="alert">{syncError}</div>}

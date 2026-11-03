@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { boardsInCategory, fetchLeaderboard, formatRank } from '../lib/leaders'
-import { SPORT_LABEL } from '../lib/players'
+import { SPORT_LABEL, searchEspn } from '../lib/players'
 
 // ESPN names winter seasons by the year they end (2027 = the 2026–27 season).
 const SPLIT_YEAR = new Set(['nba', 'nhl', 'college-basketball'])
@@ -44,22 +44,44 @@ export function LeaderboardPage({ view, onBack, onOpenPlayer, onChangeBoard }) {
     return () => controller.abort()
   }, [board])
 
-  // Keep the active tab visible in the scrolling tab strip.
+  // Open on the player: once the list loads (and on each tab switch), scroll
+  // to his row if he's past the first few, which are already on screen.
+  const myRank = data?.rows.find((r) => r.athleteId === player?.id || (player?.mlbId && r.mlbId === player.mlbId))?.rank
   useEffect(() => {
-    tabsRef.current?.querySelector('.active')?.scrollIntoView({ block: 'nearest', inline: 'center' })
+    if (myRank > 8) meRef.current?.scrollIntoView({ block: 'center' })
+  }, [data, myRank])
+
+  // Keep the active tab visible in the scrolling tab strip.
+  // (Scrolls only the strip sideways; scrollIntoView would also move the page.)
+  useEffect(() => {
+    const strip = tabsRef.current
+    const tab = strip?.querySelector('.active')
+    if (tab) strip.scrollLeft = tab.offsetLeft - strip.clientWidth / 2 + tab.offsetWidth / 2
   }, [boards, board])
 
-  const mine = data?.rows.find((r) => r.athleteId === player?.id)
+  const isMe = (r) => r.athleteId === player?.id || (player?.mlbId && r.mlbId === player.mlbId)
+  const mine = data?.rows.find(isMe)
+  // Rows from MLB's lists have no ESPN id; find the ESPN player by name.
+  const openRow = async (r) => {
+    if (r.athleteId) return onOpenPlayer({ sport: board.sport, athleteId: r.athleteId, name: r.name, headshot: r.headshot })
+    const hit = (await searchEspn(r.name).catch(() => null))?.players.find((p) => p.sport === board.sport)
+    if (hit) onOpenPlayer({ sport: board.sport, athleteId: hit.athleteId, name: hit.name, headshot: hit.headshot })
+  }
   const inList = Boolean(mine)
   const tile = tiles[board.stat]
 
   return (
     <div className="pg-page">
       <div className="pg-wrap lb-page">
-        <button className="back-btn" onClick={onBack}><span aria-hidden="true">←</span> Back</button>
-
         <header className="lb-head">
-          <span className="lb-eyebrow">{[SPORT_LABEL[board.sport], board.year && `${seasonName(board)} regular season`, 'League leaders'].filter(Boolean).join(' · ')}</span>
+          {/* Back on its own row like player/team pages, but compact. */}
+          <button type="button" className="pg-back lb-back" onClick={onBack}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
+            Back
+          </button>
+          <div className="lb-topline">
+            <span className="lb-eyebrow">{[SPORT_LABEL[board.sport], board.year && `${seasonName(board)} regular season`, 'League leaders'].filter(Boolean).join(' · ')}</span>
+          </div>
           <h1 className="lb-title">{board.label}</h1>
           {board.description && <p className="lb-desc">{board.description}</p>}
           {mine && mine.rank > 8 && (
@@ -90,18 +112,18 @@ export function LeaderboardPage({ view, onBack, onOpenPlayer, onChangeBoard }) {
         <section className="pg-card lb-card">
           {!data && !error && <div className="lb-status">Loading…</div>}
           {error && <div className="lb-status error">{error}</div>}
-          {data && !data.rows.length && <div className="lb-status">No qualified players yet this season.</div>}
+          {data && !data.rows.length && <div className="lb-status">Nobody has recorded this stat yet this season.</div>}
 
           {data && data.rows.length > 0 && (
             <ol className="lb-list">
               {data.rows.map((r) => {
-                const me = r.athleteId === player?.id
+                const me = isMe(r)
                 return (
-                  <li key={r.athleteId} ref={me ? meRef : null}>
+                  <li key={r.athleteId || r.mlbId} ref={me ? meRef : null}>
                     <button
                       type="button"
                       className={`lb-row ${me ? 'me' : ''}`}
-                      onClick={() => onOpenPlayer({ sport: board.sport, athleteId: r.athleteId, name: r.name, headshot: r.headshot })}
+                      onClick={() => openRow(r)}
                     >
                       <span className="lb-rank">{r.rank}</span>
                       {r.headshot ? (
@@ -136,7 +158,7 @@ export function LeaderboardPage({ view, onBack, onOpenPlayer, onChangeBoard }) {
           {data && (
             <footer className="lb-foot">
               {data.capped
-                ? `Top ${data.rows.length} FBS players shown.`
+                ? `Top ${data.rows.length}${board.sport === 'college-football' ? ' FBS' : ''} players shown.`
                 : `Top ${data.rows.length} of ${data.total} ${data.qualified ? 'qualified players (minimum playing time applies)' : 'players with a stat'}.`}
             </footer>
           )}

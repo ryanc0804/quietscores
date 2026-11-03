@@ -518,45 +518,49 @@ html, body { background: var(--bg-primary); color: var(--text-primary); }
 .bmc-text-link:hover { color: var(--text-primary); border-bottom-color: var(--text-muted); }
 
 /* ---------- Conference filter (college sports) ---------- */
+/* Same tray and buttons as the sport bar; arrows + edge fades when it overflows. */
+.conf-wrap {
+    position: relative; width: fit-content; max-width: 100%; margin: 0 auto;
+    padding: 4px; border-radius: 10px;
+    background: rgba(var(--overlay), 0.03); border: 1px solid rgba(var(--overlay), 0.05);
+}
 .conference-bar {
-    display: flex;
-    gap: 6px;
-    padding: 4px 10px 2px;
-    margin: 0 auto;
-    max-width: 100%;
-    overflow-x: auto;
-    scrollbar-width: none;
-    justify-content: safe center;
+    display: flex; gap: 4px;
+    overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+    scroll-padding-inline: 40px;
 }
 .conference-bar::-webkit-scrollbar { display: none; }
+.conf-wrap.more-right .conference-bar { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 56px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 56px), transparent); }
+.conf-wrap.more-left .conference-bar { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 56px), transparent); mask-image: linear-gradient(to left, #000 calc(100% - 56px), transparent); }
+.conf-wrap.more-left.more-right .conference-bar {
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 56px, #000 calc(100% - 56px), transparent);
+    mask-image: linear-gradient(to right, transparent, #000 56px, #000 calc(100% - 56px), transparent);
+}
+.conf-arrow {
+    position: absolute; top: 50%; transform: translateY(-50%); z-index: 1;
+    width: 30px; height: 30px; border-radius: 7px; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid rgba(var(--overlay), 0.1); background: var(--bg-secondary); color: var(--text-primary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+.conf-arrow:hover { background: var(--bg-card-secondary, var(--bg-secondary)); }
+.conf-arrow.left { left: 4px; }
+.conf-arrow.right { right: 4px; }
 .conf-chip {
-    flex: 0 0 auto;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    border-radius: 999px;
-    border: 1px solid var(--border-primary);
-    background: transparent;
-    color: var(--text-secondary);
-    font-size: 0.78rem;
-    font-weight: 700;
-    cursor: pointer;
-    white-space: nowrap;
+    flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border: none; border-radius: 7px; background: transparent;
+    color: var(--text-secondary); font-size: 0.8rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .conf-chip:hover { color: var(--text-primary); background: rgba(var(--overlay), 0.05); }
-.conf-chip.active { background: var(--chip-active-bg); color: var(--chip-active-fg); border-color: transparent; }
+.conf-chip.active { background: var(--chip-active-bg); color: var(--chip-active-fg); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
 .conf-count {
-    font-size: 0.68rem;
-    font-weight: 700;
-    color: var(--text-muted);
-    background: rgba(var(--overlay), 0.07);
-    padding: 0 6px;
-    border-radius: 999px;
+    font-size: 0.68rem; font-weight: 700; color: var(--text-muted);
+    background: rgba(var(--overlay), 0.07); padding: 0 6px; border-radius: 5px;
 }
 .conf-chip.active .conf-count { color: inherit; background: rgba(127, 127, 127, 0.25); }
 .conf-title .conf-count { margin-left: 4px; vertical-align: 1px; }
-.conference-bar + .scores-container { margin-top: 14px; }
+.conf-wrap + .scores-container { margin-top: 14px; }
 
 /* ---------- Accounts ---------- */
 .header-right { gap: 8px; align-items: center; }
@@ -594,6 +598,11 @@ html, body { background: var(--bg-primary); color: var(--text-primary); }
     background: transparent; color: var(--text-primary); font-size: 0.85rem; font-weight: 600; cursor: pointer;
 }
 .account-dropdown button:hover { background: rgba(var(--overlay), 0.06); }
+.account-btn.signin-cta {
+    display: inline-flex; align-items: center; gap: 6px; padding: 0 14px;
+    border: 1px solid var(--accent-primary); color: var(--accent-primary); background: transparent;
+}
+.account-btn.signin-cta:hover { background: color-mix(in srgb, var(--accent-primary) 12%, transparent); }
 .account-btn.avatar.guest {
     background: transparent; color: var(--text-secondary); border: 1px solid var(--border-primary);
 }

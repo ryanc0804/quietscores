@@ -5,7 +5,7 @@
       "destination": "https://www.fotmob.com/:path*"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ],

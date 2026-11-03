@@ -2,8 +2,23 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
+// Serve the Vercel functions in api/ during `npm run dev` too, so /api/* works
+// the same locally as in production.
+function vercelApi() {
+  return {
+    name: 'vercel-api',
+    configureServer(server) {
+      server.middlewares.use('/api/nflverse', async (req, res) => {
+        const { default: handler } = await server.ssrLoadModule('/api/nflverse.js')
+        req.query = Object.fromEntries(new URL(req.originalUrl || req.url, 'http://localhost').searchParams)
+        await handler(req, res)
+      })
+    },
+  }
+}
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), vercelApi()],
   server: {
     proxy: {
       // FotMob's API sends no CORS headers, so the browser can't call it

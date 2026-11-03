@@ -2,9 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { fetchPlayer, trendFor, SPORT_LABEL } from '../lib/players'
 import { heroColors } from './heroColor'
 import { SummarySkeleton } from '../components/Skeletons'
-import { findRank, formatRank, leaderboardFor } from '../lib/leaders'
+import { findRank, formatRank, isCurrentSeason, leaderboardFor, seasonYear } from '../lib/leaders'
+import { fetchAdvanced } from '../lib/advanced'
 import { fetchCareer } from '../lib/career'
 import { PlayerLastGame } from '../components/PlayerLastGame'
+import { PercentileTrack } from '../components/PercentileBars'
 
 function Headshot({ src, name }) {
   const [failed, setFailed] = useState(false)
@@ -21,11 +23,30 @@ function Headshot({ src, name }) {
   return <img className="pp-headshot" src={src} alt={name} onError={() => setFailed(true)} />
 }
 
-// ESPN's player-page rank matches its leaderboards everywhere except college
-// basketball, where it uses a different pool; there the tile rank is looked up
-// on the leaderboard so the two always agree.
-function usesSummaryRank(sport, tile) {
-  return Boolean(tile.rankFull) && sport !== 'college-basketball'
+// ESPN's player-page rank matches its leaderboards except in college
+// basketball (a different pool) and on boards ranked here (QB interceptions,
+// W-L shown as wins); there the tile rank is looked up on the leaderboard so
+// the two always agree.
+function usesSummaryRank(sport, tile, board) {
+  return Boolean(tile.rankFull) && sport !== 'college-basketball' && !board?.ownRank && !board?.aliased
+}
+
+// A column is worth showing if any game has something in it ("0", "0.0" and
+// "-" in every game means the player doesn't do that: a WR's rushing).
+const EMPTY_CELL = /^(?:0|0\.0+|-|–|0-0|)$/
+function gameLogColumns(log) {
+  const cols = log.labels.map((_, i) => i).filter((i) => log.rows.some((r) => !EMPTY_CELL.test(String(r.stats[i] ?? '').trim())))
+  const visible = cols.length ? cols : log.labels.map((_, i) => i)
+  // Group labels over the kept columns, only when more than one group is left.
+  let start = 0
+  const groups = (log.groups || [])
+    .map((g) => {
+      const span = visible.filter((i) => i >= start && i < start + g.count).length
+      start += g.count
+      return { label: g.label, span }
+    })
+    .filter((g) => g.span > 0)
+  return { visible, groups: groups.length > 1 ? groups : null }
 }
 
 function formatDate(iso) {
@@ -63,6 +84,7 @@ export function PlayerPage({ player: ref, onBack, onOpenTeam, onOpenLeaderboard 
   const [boards, setBoards] = useState({}) // tile key → leaderboard, for tiles that have one
   const [foundRanks, setFoundRanks] = useState({}) // tile key → { rank } | { reason }, when ESPN gave none
   const [career, setCareer] = useState(null)
+  const [advanced, setAdvanced] = useState(null)
   const [careerTab, setCareerTab] = useState(null)
 
   useEffect(() => {
@@ -82,7 +104,7 @@ export function PlayerPage({ player: ref, onBack, onOpenTeam, onOpenLeaderboard 
     let cancelled = false
     Promise.all(
       player.tiles.map((t) =>
-        leaderboardFor(player.sport, t.key, player.positionAbbr)
+        leaderboardFor(player.sport, t.key, player.positionAbbr, player.seasonLabel)
           .then((b) => [t.key, b])
           .catch(() => [t.key, null]),
       ),
@@ -93,12 +115,27 @@ export function PlayerPage({ player: ref, onBack, onOpenTeam, onOpenLeaderboard 
       // ESPN leaves some ranks off the player page (all of college basketball,
       // unqualified rate stats); look those up on the leaderboard itself.
       for (const t of player.tiles) {
-        if (!found[t.key] || usesSummaryRank(player.sport, t)) continue
+        if (!found[t.key] || usesSummaryRank(player.sport, t, found[t.key])) continue
         findRank(found[t.key], player.id)
           .then((r) => !cancelled && setFoundRanks((prev) => ({ ...prev, [t.key]: r })))
           .catch(() => {})
       }
     })
+    return () => {
+      cancelled = true
+    }
+  }, [player])
+
+  // Advanced stats (NFL, MLB) for the current season only: an inactive
+  // player's page shows last season, which these lists don't cover.
+  useEffect(() => {
+    if (!player || !['nfl', 'mlb'].includes(player.sport)) return
+    let cancelled = false
+    ;(async () => {
+      if (!(await isCurrentSeason(player.sport, player.seasonLabel))) return
+      const adv = await fetchAdvanced(player, await seasonYear(player.sport))
+      if (!cancelled) setAdvanced(adv)
+    })().catch(() => {})
     return () => {
       cancelled = true
     }
@@ -117,11 +154,11 @@ export function PlayerPage({ player: ref, onBack, onOpenTeam, onOpenLeaderboard 
   }, [player])
 
   // Rank shown on a tile: ESPN's own, or one we looked up.
-  const tileRank = (t) => (usesSummaryRank(player.sport, t) ? { rank: formatRank(t.rankFull) } : foundRanks[t.key] || null)
+  const tileRank = (t) => (usesSummaryRank(player.sport, t, boards[t.key]) ? { rank: formatRank(t.rankFull) } : foundRanks[t.key] || null)
 
   const openLeaderboard = (t) => {
     const tiles = Object.fromEntries(
-      player.tiles.filter((x) => boards[x.key]).map((x) => [x.key, { value: x.value, ...(tileRank(x) || {}) }]),
+      player.tiles.filter((x) => boards[x.key]).map((x) => [boards[x.key].stat, { value: x.value, ...(tileRank(x) || {}) }]),
     )
     onOpenLeaderboard({
       board: boards[t.key],
@@ -132,7 +169,18 @@ export function PlayerPage({ player: ref, onBack, onOpenTeam, onOpenLeaderboard 
   }
   const activeCareer = career?.tabs.find((c) => c.key === careerTab) || career?.tabs[0]
 
+  const openAdvancedBoard = (t) => {
+    const tiles = Object.fromEntries(advanced.tiles.filter((x) => x.board).map((x) => [x.board.stat, { value: x.value, rank: x.rank, reason: x.reason }]))
+    onOpenLeaderboard({
+      board: t.board,
+      position: player.positionAbbr,
+      player: { id: player.id, mlbId: advanced.mlbId, name: player.name, headshot: player.headshot || ref.headshot },
+      tiles,
+    })
+  }
+
   const trend = useMemo(() => trendFor(player), [player])
+  const logCols = useMemo(() => (player?.log ? gameLogColumns(player.log) : null), [player])
   const colors = heroColors(player?.team?.color)
 
   return (
@@ -235,7 +283,41 @@ export function PlayerPage({ player: ref, onBack, onOpenTeam, onOpenLeaderboard 
               </section>
             )}
 
-            <div className="pg-two-col">
+            {advanced && (
+              <section>
+                <h2 className="pg-section-title">
+                  Advanced{' '}
+                  <span className="pp-adv-source">
+                    via {advanced.source}
+                    {advanced.updated && ` · updated ${new Date(advanced.updated.replace(/ E[SD]T$/, '').replace(' ', 'T')).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
+                  </span>
+                </h2>
+                <div className="pp-tiles">
+                  {advanced.tiles.map((t) => {
+                    const rankText = t.rank ? `${t.rank} in ${SPORT_LABEL[player.sport]}` : t.reason
+                    const pct = Number.isFinite(t.percentile) ? `, ${t.percentile}th percentile` : ''
+                    const body = (
+                      <>
+                        <div className="pp-tile-label">{t.label}</div>
+                        <div className="pp-tile-value">{t.value}</div>
+                        {rankText && <div className={`pp-tile-rank ${t.rank ? '' : 'muted'}`}>{rankText}</div>}
+                        <PercentileTrack percentile={t.percentile} />
+                      </>
+                    )
+                    return t.board ? (
+                      <button key={t.key} type="button" className="pg-card pp-tile clickable" title={t.desc || undefined}
+                        onClick={() => openAdvancedBoard(t)} aria-label={`${t.label} ${t.value}${rankText ? `, ${rankText}` : ''}${pct}. Show league leaderboard`}>
+                        {body}
+                      </button>
+                    ) : (
+                      <div key={t.key} className="pg-card pp-tile" title={t.desc || undefined}>{body}</div>
+                    )
+                  })}
+                </div>
+              </section>
+            )}
+
+            <div className="pg-two-col pp-log-row">
               {player.log && (
                 <section className="pg-card pg-col-main">
                   <div className="pg-card-head">
@@ -245,11 +327,21 @@ export function PlayerPage({ player: ref, onBack, onOpenTeam, onOpenLeaderboard 
                   <div className="pg-table-scroll">
                     <table className="pg-table">
                       <thead>
+                        {logCols.groups && (
+                          <tr className="pp-log-groups">
+                            <th colSpan={3} />
+                            {logCols.groups.map((g) => (
+                              <th key={g.label} colSpan={g.span}>{g.label}</th>
+                            ))}
+                          </tr>
+                        )}
                         <tr>
                           <th className="left">Date</th>
                           <th className="left">Opp</th>
                           <th className="left">Result</th>
-                          {player.log.labels.map((l, i) => <th key={i}>{l}</th>)}
+                          {logCols.visible.map((i) => (
+                            <th key={i} title={player.log.displayNames[i] || undefined}>{player.log.labels[i]}</th>
+                          ))}
                         </tr>
                       </thead>
                       <tbody>
@@ -260,7 +352,7 @@ export function PlayerPage({ player: ref, onBack, onOpenTeam, onOpenLeaderboard 
                             <td className="left">
                               <b className={r.result === 'W' ? 'pg-win' : r.result === 'L' ? 'pg-loss' : ''}>{r.result}</b> {r.score}
                             </td>
-                            {r.stats.map((s, i) => <td key={i}>{s}</td>)}
+                            {logCols.visible.map((i) => <td key={i}>{r.stats[i]}</td>)}
                           </tr>
                         ))}
                       </tbody>
