@@ -2325,7 +2325,6 @@ function App() {
           </span>
         </div>
 
-        <div className="week-row">
         <div className="week-buttons">
           <button className="week-nav-btn" onClick={handlePreviousWeek}>
             ◀
@@ -2349,23 +2348,6 @@ function App() {
             ▶
           </button>
         </div>
-          {liveCount > 0 && (
-            <button
-              type="button"
-              className={`live-games-indicator ${showLiveOnly ? 'active' : ''}`}
-              aria-pressed={showLiveOnly}
-              title={showLiveOnly ? 'Show all games' : 'Show only live games'}
-              onClick={() => {
-                setShowLiveOnly(!showLiveOnly)
-                if (viewStack.length) closeAllViews()
-              }}
-            >
-              <span className="live-dot" aria-hidden="true" />
-              <span>Live</span>
-              <span className="count">{liveCount}</span>
-            </button>
-          )}
-        </div>
 
       </div>
 
@@ -2374,6 +2356,29 @@ function App() {
       )}
 
       {syncError && <div className="sync-error" role="alert">{syncError}</div>}
+
+      {!error && !isLoading && (liveCount > 0 || sortedScores.length > 0) && (
+        <div className="list-toolbar">
+          {liveCount > 0 && (
+            <button
+              type="button"
+              className={`live-games-indicator ${showLiveOnly ? 'active' : ''}`}
+              aria-pressed={showLiveOnly}
+              title={showLiveOnly ? 'Show all games' : 'Show only live games'}
+              onClick={() => setShowLiveOnly(!showLiveOnly)}
+            >
+              <span className="live-dot" aria-hidden="true" />
+              <span>Live</span>
+              <span className="count">{liveCount}</span>
+            </button>
+          )}
+          <span className="list-toolbar-count">
+            {showLiveOnly
+              ? `Showing ${sortedScores.length} live ${sortedScores.length === 1 ? 'game' : 'games'}`
+              : `${sortedScores.length} ${sortedScores.length === 1 ? 'game' : 'games'} ${viewingToday ? 'today' : `on ${currentDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`}`}
+          </span>
+        </div>
+      )}
 
       <div className="scores-container" id="scoresContainer">
         {error ? (

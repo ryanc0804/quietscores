@@ -6991,18 +6991,14 @@ body.pwa-mode {
 /* The logo sits beside the name now, so drop the old phone-layout indent. */
 .site-header .header-logo-group h1 { margin-left: 0 !important; }
 
-/* Live toggle: pinned just right of the week strip, so the days stay centred
-   whether it's showing or not. Below the strip on narrow screens. */
-.week-row { position: relative; display: flex; justify-content: center; width: fit-content; margin: 0 auto 15px; }
-.week-row .week-buttons { margin: 0; }
-.week-row .live-games-indicator {
-    position: absolute; left: calc(100% + 12px); top: 50%; transform: translateY(-50%);
-    border: 1px solid rgba(220, 53, 69, 0.45); font: inherit; font-size: 0.8rem; font-weight: 700;
+/* Row above the game list: Live filter + how many games are showing. */
+.list-toolbar { display: flex; align-items: center; gap: 12px; margin: 22px 0 -14px; padding: 0 10px; }
+.list-toolbar .live-games-indicator {
+    padding: 5px 12px; border: 1px solid rgba(220, 53, 69, 0.45); border-radius: 999px;
+    font: inherit; font-size: 0.78rem; font-weight: 700;
 }
-.live-games-indicator .live-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.list-toolbar .live-games-indicator .count { font-size: inherit; }
+.list-toolbar-count { font-size: 0.8rem; color: var(--text-muted); font-weight: 600; }
+.live-games-indicator .live-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .live-games-indicator:not(.active) .live-dot { animation: live-pulse 1.6s ease-in-out infinite; }
 @keyframes live-pulse { 50% { opacity: 0.35; } }
-@media (max-width: 900px) {
-    .week-row { flex-direction: column; align-items: center; gap: 10px; }
-    .week-row .live-games-indicator { position: static; transform: none; }
-}
