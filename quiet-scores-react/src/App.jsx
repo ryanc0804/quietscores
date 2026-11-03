@@ -2299,10 +2299,16 @@ function App() {
   ) : (
     <>
       <div className="date-navigation">
-        <div className="week-display" onClick={toggleDatePicker} style={{ cursor: 'pointer' }}>
+        <div className="week-display">
           <div className="week-label" id="weekLabel">
             {weekLabel}
           </div>
+          <button type="button" className="calendar-btn" onClick={toggleDatePicker} aria-label="Pick a date" title="Pick a date">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="3" y="5" width="18" height="16" rx="2" />
+              <path d="M16 3v4M8 3v4M3 10h18" />
+            </svg>
+          </button>
         </div>
 
         <div className="week-buttons">

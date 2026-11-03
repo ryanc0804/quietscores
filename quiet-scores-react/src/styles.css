@@ -194,17 +194,33 @@ body.pwa-mode {
 }
 
 .week-display {
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     width: fit-content;
-    text-align: center;
-    transition: all 0.2s ease;
     padding: 4px 12px;
-    border-radius: 8px;
-    margin: 0 auto;
+    margin: 0 auto 8px;
 }
 
-.week-display:hover {
-    background: rgba(var(--overlay), 0.05);
+/* The calendar icon (not the label) opens the date picker. */
+.calendar-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.calendar-btn:hover {
+    background: rgba(var(--overlay), 0.08);
+    color: var(--text-primary);
 }
 
 .week-label {
@@ -213,7 +229,6 @@ body.pwa-mode {
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 1px;
-    margin-bottom: 8px;
 }
 
 .week-dates {
