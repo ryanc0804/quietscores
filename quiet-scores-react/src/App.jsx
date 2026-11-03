@@ -1,6 +1,34 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useScores } from './hooks/useScores'
+import { useFavorites } from './hooks/useFavorites'
+import { useTheme } from './hooks/useTheme'
+import { ScoresSkeleton, SummarySkeleton } from './components/Skeletons'
+import {
+  Section,
+  Linescore,
+  FootballField,
+  Timeouts,
+  WinProbability,
+  ScoringSummary,
+  PlayByPlay,
+  InjuryReport,
+  GameInfo,
+  Tabs,
+} from './components/GameDetails'
+import {
+  buildLinescore,
+  getAllPlays,
+  getFootballSituation,
+  getGameInfo,
+  getInjuries,
+  getScoringPlays,
+  getSeasonSeries,
+  getWinProbabilitySeries,
+  isFootball,
+} from './lib/gameDetails'
 import { fetchGameSummary, fetchStandings, filterStandingsByTeams, fetchTeamInfo, fetchTeamRoster, fetchTeamSchedule, fetchUFCFightStats } from './lib/espnApi'
+
+const SUMMARY_REFRESH_MS = 15_000
 
 const SOCCER_SPORT_KEYS = ['worldcup', 'mls', 'epl', 'ucl', 'laliga', 'bundesliga', 'seriea', 'ligue1']
 
@@ -403,7 +431,7 @@ function TeamLogo({ name, logoUrl, fallbackText }) {
 }
 
 
-function TeamRow({ game, side, onOpenTeam }) {
+function TeamRow({ game, side, onOpenTeam, isFavorite, onToggleFavorite }) {
   const isAway = side === 'away'
   const teamName = isAway ? game.awayTeam : game.homeTeam
   const teamShortName = isAway ? game.awayShortName : game.homeShortName
@@ -424,17 +452,6 @@ function TeamRow({ game, side, onOpenTeam }) {
       // Compare as strings to ensure type matching
       hasPossession = game.possessionTeam && teamId && String(game.possessionTeam) === String(teamId)
       
-      // Debug: Log possession check for first live game
-      if (game.status === 'live' && (game.sport === 'nfl' || game.sport === 'college-football') && !window._loggedPossessionCheck) {
-        window._loggedPossessionCheck = true
-        console.log('=== POSSESSION CHECK DEBUG ===')
-        console.log('Sport:', game.sport)
-        console.log('Game possessionTeam:', game.possessionTeam, typeof game.possessionTeam)
-        console.log('Team ID:', teamId, typeof teamId)
-        console.log('Side:', side, 'isAway:', isAway)
-        console.log('Has possession:', hasPossession)
-        console.log('Comparison:', String(game.possessionTeam), '===', String(teamId))
-      }
     } else if (game.sport === 'mlb') {
       hasPossession = game.atBatTeam === side
     }
@@ -487,8 +504,27 @@ function TeamRow({ game, side, onOpenTeam }) {
     })
   }
 
+  const teamId = isAway ? game.awayTeamId : game.homeTeamId
+  const favorite = !!isFavorite?.(game.sport, teamId)
+  const handleFavoriteClick = (e) => {
+    e.stopPropagation()
+    onToggleFavorite?.({ sport: game.sport, teamId, name: teamName, logo: logoUrl, abbreviation: teamAbbreviation })
+  }
+
   return (
     <div className={classes.filter(Boolean).join(' ')}>
+      {onToggleFavorite && teamId && (
+        <button
+          type="button"
+          className={`fav-btn ${favorite ? 'on' : ''}`}
+          onClick={handleFavoriteClick}
+          aria-pressed={favorite}
+          aria-label={favorite ? `Remove ${teamName} from favorites` : `Add ${teamName} to favorites`}
+          title={favorite ? 'Remove from favorites' : 'Add to favorites'}
+        >
+          {favorite ? '★' : '☆'}
+        </button>
+      )}
       <div className="team-info team-info-clickable" onClick={handleTeamClick}>
         <div className="team-logo">
           <TeamLogo name={teamName} logoUrl={logoUrl} fallbackText={fallbackText} />
@@ -513,7 +549,7 @@ function TeamRow({ game, side, onOpenTeam }) {
   )
 }
 
-function ScoreCard({ game, onOpenSummary, onOpenTeam }) {
+function ScoreCard({ game, onOpenSummary, onOpenTeam, isFavorite, onToggleFavorite, highlight }) {
   const badge = getStatusBadge(game)
   const statusBadge = badge ? (
     <span className={badge.className}>{badge.text}</span>
@@ -521,9 +557,18 @@ function ScoreCard({ game, onOpenSummary, onOpenTeam }) {
 
   return (
     <div
-      className="score-card"
+      className={`score-card${highlight ? ' is-favorite' : ''}${game.status === 'live' || game.status === 'halftime' ? ' is-live' : ''}`}
       data-game-id={`${game.sport}-${game.awayTeam}-${game.homeTeam}`}
       onClick={() => onOpenSummary(game)}
+      onKeyDown={(e) => {
+        if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault()
+          onOpenSummary(game)
+        }
+      }}
+      role="button"
+      tabIndex={0}
+      aria-label={`${game.awayTeam} at ${game.homeTeam}`}
     >
       <div className="game-header">
         <span className="sport-type">
@@ -534,13 +579,13 @@ function ScoreCard({ game, onOpenSummary, onOpenTeam }) {
       </div>
       <div className="game-content">
         <div className="teams">
-          <TeamRow game={game} side="away" onOpenTeam={onOpenTeam} />
+          <TeamRow game={game} side="away" onOpenTeam={onOpenTeam} isFavorite={isFavorite} onToggleFavorite={onToggleFavorite} />
           {game.status === 'scheduled' && game.odds?.overUnder !== null && game.odds?.overUnder !== undefined && (
             <div className="over-under-display">
               O/U: {game.odds?.overUnder}
             </div>
           )}
-          <TeamRow game={game} side="home" onOpenTeam={onOpenTeam} />
+          <TeamRow game={game} side="home" onOpenTeam={onOpenTeam} isFavorite={isFavorite} onToggleFavorite={onToggleFavorite} />
         </div>
         {game.sport === 'mlb' && game.status === 'live' && (
           <div className="mlb-game-state live-game">
@@ -583,8 +628,7 @@ function GameSummary({ game, onBack, onOpenTeam }) {
   const [summaryData, setSummaryData] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [playFilter, setPlayFilter] = useState('all')
-  const [activeTab, setActiveTab] = useState('gamecast')
+  const [detailTab, setDetailTab] = useState('gamecast')
   const [standingsData, setStandingsData] = useState(null)
   const [standingsLoading, setStandingsLoading] = useState(false)
   const [standingsError, setStandingsError] = useState(null)
@@ -607,31 +651,6 @@ function GameSummary({ game, onBack, onOpenTeam }) {
       try {
         const data = await fetchGameSummary(game.sport, game.id)
         if (!cancelled) {
-          // Immediate debug - log the raw response structure
-          console.log('=== SUMMARY API RESPONSE RECEIVED ===')
-          console.log('Response keys:', Object.keys(data))
-          console.log('Has header?', !!data.header)
-          console.log('Has boxscore?', !!data.boxscore)
-          if (data.header?.competitions?.[0]?.competitors) {
-            data.header.competitions[0].competitors.forEach((comp, idx) => {
-              console.log(`Header competitor[${idx}] has linescores:`, !!comp.linescores, comp.linescores)
-            })
-          }
-          if (data.boxscore?.teams) {
-            data.boxscore.teams.forEach((team, idx) => {
-              console.log(`Boxscore team[${idx}] has linescores:`, !!team.linescores, team.linescores)
-            })
-          }
-          if (data.boxscore?.situation) {
-            console.log('Boxscore situation:', data.boxscore.situation)
-            console.log('Situation keys:', Object.keys(data.boxscore.situation))
-          }
-          if (data.header?.competitions?.[0]?.situation) {
-            console.log('Header situation:', data.header.competitions[0].situation)
-            console.log('Header situation keys:', Object.keys(data.header.competitions[0].situation))
-          }
-          console.log('Full response structure:', JSON.stringify(data, null, 2).substring(0, 15000))
-          
           setSummaryData(data)
           setIsLoading(false)
         }
@@ -651,6 +670,25 @@ function GameSummary({ game, onBack, onOpenTeam }) {
     }
   }, [game?.id, game?.sport])
 
+  // Keep live games fresh: re-pull the summary quietly while the game is on.
+  const isLiveGame = game?.status === 'live' || game?.status === 'halftime'
+  useEffect(() => {
+    if (!isLiveGame || !game?.id || !game?.sport || game.sport === 'ufc') return
+    let cancelled = false
+    const interval = setInterval(async () => {
+      try {
+        const data = await fetchGameSummary(game.sport, game.id)
+        if (!cancelled) setSummaryData(data)
+      } catch {
+        /* keep showing the last good data */
+      }
+    }, SUMMARY_REFRESH_MS)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [isLiveGame, game?.id, game?.sport])
+
   useEffect(() => {
     if (game?.sport !== 'ufc' || !game?.eventId || !game?.id) return
     let cancelled = false
@@ -664,21 +702,6 @@ function GameSummary({ game, onBack, onOpenTeam }) {
   const gameState = (game.status === 'live' || game.status === 'halftime') ? 'live'
     : game.status === 'final' ? 'final'
     : 'preview'
-
-  // Set correct default tab when game state changes
-  useEffect(() => {
-    if (gameState === 'preview') {
-      setActiveTab('preview')
-    } else if (gameState === 'final') {
-      if (activeTab === 'play-by-play' || activeTab === 'gamecast' || activeTab === 'preview') {
-        setActiveTab('boxscore')
-      }
-    } else if (gameState === 'live') {
-      if (activeTab === 'preview') {
-        setActiveTab('gamecast')
-      }
-    }
-  }, [gameState])
 
   // Fetch standings for the teams' divisions
   useEffect(() => {
@@ -709,10 +732,6 @@ function GameSummary({ game, onBack, onOpenTeam }) {
         awayId = awayId || awayComp?.team?.id
       }
       
-      console.log('=== LOAD STANDINGS ===')
-      console.log('game.sport:', game?.sport)
-      console.log('homeId:', homeId)
-      console.log('awayId:', awayId)
       
       if (!homeId || !awayId) {
         // Don't set error yet - might get IDs from summaryData later
@@ -727,7 +746,6 @@ function GameSummary({ game, onBack, onOpenTeam }) {
 
       try {
         const allStandings = await fetchStandings(game.sport)
-        console.log('Fetched standings:', allStandings ? 'success' : 'null')
         
         if (!cancelled) {
           if (allStandings) {
@@ -738,9 +756,7 @@ function GameSummary({ game, onBack, onOpenTeam }) {
               names: [game.homeTeam, game.awayTeam].filter(Boolean),
               abbrs: [game.homeAbbreviation, game.awayAbbreviation].filter(Boolean)
             }
-            console.log('Team info for filtering:', teamInfo)
             const filtered = filterStandingsByTeams(allStandings, teamInfo)
-            console.log('Filtered standings result:', filtered)
             if (filtered) {
               setStandingsData(filtered)
             } else {
@@ -783,248 +799,18 @@ function GameSummary({ game, onBack, onOpenTeam }) {
            t.team?.name === game.homeTeam
   }) || teams[1] || (teams[0] === awayTeam ? null : teams[0])
   
-  // Extract quarter/period scores from linescores
-  // Check multiple possible locations for linescores data
-  // First check header.competitions (most common ESPN API location)
-  const headerCompetitors = summaryData?.header?.competitions?.[0]?.competitors || []
-  const headerAwayCompetitor = headerCompetitors.find(c => 
-    String(c.team?.id) === String(game.awayTeamId) || 
-    c.homeAway === 'away'
+  // Clean derivations for the richer game-detail views (see lib/gameDetails.js)
+  const linescore = useMemo(() => (summaryData ? buildLinescore(summaryData, game) : null), [summaryData, game])
+  const scoringPlays = useMemo(() => getScoringPlays(summaryData, game.sport), [summaryData, game.sport])
+  const wpSeries = useMemo(() => getWinProbabilitySeries(summaryData, game.sport), [summaryData, game.sport])
+  const footballSituation = useMemo(
+    () => (isFootball(game.sport) && gameState === 'live' ? getFootballSituation(summaryData, game) : null),
+    [summaryData, game, gameState],
   )
-  const headerHomeCompetitor = headerCompetitors.find(c => 
-    String(c.team?.id) === String(game.homeTeamId) || 
-    c.homeAway === 'home'
-  )
-  
-  const awayLinescores = headerAwayCompetitor?.linescores ||
-                         awayTeam?.linescores || 
-                         boxscore?.linescores?.find(ls => String(ls.teamId || ls.team?.id) === String(awayTeam?.team?.id))?.linescores ||
-                         summaryData?.linescores?.find(ls => String(ls.teamId || ls.team?.id) === String(awayTeam?.team?.id))?.linescores ||
-                         []
-  const homeLinescores = headerHomeCompetitor?.linescores ||
-                         homeTeam?.linescores || 
-                         boxscore?.linescores?.find(ls => String(ls.teamId || ls.team?.id) === String(homeTeam?.team?.id))?.linescores ||
-                         summaryData?.linescores?.find(ls => String(ls.teamId || ls.team?.id) === String(homeTeam?.team?.id))?.linescores ||
-                         []
-  
-  // Debug: log the structure to understand the data format
-  if (summaryData && !window._loggedLinescoresDebug) {
-    window._loggedLinescoresDebug = true
-    console.log('=== LINESCORES DEBUG ===')
-    console.log('summaryData keys:', Object.keys(summaryData))
-    console.log('boxscore keys:', boxscore ? Object.keys(boxscore) : 'no boxscore')
-    console.log('awayTeam keys:', awayTeam ? Object.keys(awayTeam) : 'no awayTeam')
-    console.log('awayTeam.linescores:', awayTeam?.linescores)
-    console.log('boxscore.linescores:', boxscore?.linescores)
-    console.log('summaryData.linescores:', summaryData?.linescores)
-    
-    // Check header.competitions for linescores (common ESPN API location)
-    const header = summaryData?.header
-    console.log('header:', header)
-    console.log('header.competitions:', header?.competitions)
-    if (header?.competitions?.[0]?.competitors) {
-      console.log('header.competitions[0].competitors:', header.competitions[0].competitors)
-      header.competitions[0].competitors.forEach((comp, idx) => {
-        console.log(`competitor[${idx}].linescores:`, comp.linescores)
-        console.log(`competitor[${idx}].team.id:`, comp.team?.id)
-        console.log(`competitor[${idx}].homeAway:`, comp.homeAway)
-        if (comp.linescores) {
-          console.log(`competitor[${idx}].linescores FULL:`, JSON.stringify(comp.linescores, null, 2))
-        }
-      })
-    }
-    
-    // Recursively search for all "linescores" in the response
-    const findAllLinescores = (obj, path = 'root') => {
-      const results = []
-      if (!obj || typeof obj !== 'object') return results
-      
-      if (Array.isArray(obj)) {
-        obj.forEach((item, idx) => {
-          if (item && typeof item === 'object') {
-            if ('linescores' in item) {
-              results.push({ path: `${path}[${idx}].linescores`, value: item.linescores })
-            }
-            results.push(...findAllLinescores(item, `${path}[${idx}]`))
-          }
-        })
-      } else {
-        if ('linescores' in obj) {
-          results.push({ path: `${path}.linescores`, value: obj.linescores })
-        }
-        Object.keys(obj).forEach(key => {
-          if (obj[key] && typeof obj[key] === 'object') {
-            results.push(...findAllLinescores(obj[key], `${path}.${key}`))
-          }
-        })
-      }
-      return results
-    }
-    
-    const allLinescores = findAllLinescores(summaryData)
-    console.log('=== ALL LINESCORES FOUND IN RESPONSE ===')
-    if (allLinescores.length > 0) {
-      allLinescores.forEach((result, idx) => {
-        console.log(`Location ${idx + 1}: ${result.path}`)
-        console.log(`Value:`, result.value)
-        console.log(`Type:`, Array.isArray(result.value) ? 'array' : typeof result.value)
-        if (Array.isArray(result.value) && result.value.length > 0) {
-          console.log(`First item:`, result.value[0])
-          console.log(`Full array:`, JSON.stringify(result.value, null, 2))
-        }
-        console.log('---')
-      })
-    } else {
-      console.log('NO LINESCORES FOUND ANYWHERE IN RESPONSE!')
-    }
-    
-    // Log full summaryData structure (first 10000 chars)
-    console.log('Full summaryData (first 10000 chars):', JSON.stringify(summaryData, null, 2).substring(0, 10000))
-  }
-  
-  const plays = summaryData?.plays || 
-                summaryData?.boxscore?.plays || 
-                summaryData?.drives?.previous?.flatMap(d => d.plays || []) ||
-                summaryData?.drives?.current?.plays ||
-                []
+  const injuries = useMemo(() => getInjuries(summaryData), [summaryData])
+  const gameInfoRows = useMemo(() => getGameInfo(summaryData), [summaryData])
+  const seasonSeries = getSeasonSeries(summaryData)
 
-  // Determine if we have any scoring plays to decide the default filter
-  const hasScoringPlays = plays.some(p => p.scoringPlay || p.type?.text?.toLowerCase().includes('touchdown') || p.type?.text?.toLowerCase().includes('field goal'))
-
-  // Debug plays
-  if (summaryData && !window._loggedPlaysDebug) {
-    window._loggedPlaysDebug = true
-    console.log('=== PLAYS DEBUG ===')
-    console.log('Plays count:', plays.length)
-    console.log('Has scoring plays:', hasScoringPlays)
-    if (plays.length > 0) {
-      console.log('Sample play keys:', Object.keys(plays[0]))
-      console.log('Sample play:', JSON.stringify(plays[0], null, 2))
-    }
-  }
-  const headlines = summaryData?.headlines || []
-  const commentary = summaryData?.commentary || []
-  
-  // Calculate quarter scores from scoring plays if linescores aren't available
-  const calculateQuarterScores = () => {
-    const awayScores = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
-    const homeScores = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
-    let lastAwayScore = 0
-    let lastHomeScore = 0
-    
-    // Filter to only scoring plays and sort by period
-    const scoringPlays = plays.filter(play => 
-      play.scoringPlay || 
-      play.type?.text?.toLowerCase().includes('touchdown') ||
-      play.type?.text?.toLowerCase().includes('field goal') ||
-      play.type?.text?.toLowerCase().includes('safety') ||
-      play.type?.text?.toLowerCase().includes('goal') ||
-      (play.awayScore !== undefined && play.homeScore !== undefined && 
-       (play.awayScore !== lastAwayScore || play.homeScore !== lastHomeScore))
-    )
-    
-    // Sort plays by period and time
-    const sortedPlays = [...scoringPlays].sort((a, b) => {
-      const periodA = a.period?.number || a.period || 0
-      const periodB = b.period?.number || b.period || 0
-      if (periodA !== periodB) return periodA - periodB
-      return 0
-    })
-    
-    sortedPlays.forEach(play => {
-      // Try multiple ways to get scores from play
-      const awayScore = Number(play.awayScore ?? play.score?.away ?? play.scores?.away ?? 0)
-      const homeScore = Number(play.homeScore ?? play.score?.home ?? play.scores?.home ?? 0)
-      
-      if (!isNaN(awayScore) && !isNaN(homeScore) && (awayScore !== lastAwayScore || homeScore !== lastHomeScore)) {
-        const period = play.period?.number ?? play.period ?? play.periodNumber ?? 1
-        const periodNum = Number(period)
-        
-        if (periodNum >= 1 && periodNum <= 5) {
-          const awayDiff = awayScore - lastAwayScore
-          const homeDiff = homeScore - lastHomeScore
-          if (awayDiff > 0) awayScores[periodNum] += awayDiff
-          if (homeDiff > 0) homeScores[periodNum] += homeDiff
-          lastAwayScore = awayScore
-          lastHomeScore = homeScore
-        }
-      }
-    })
-    
-    // Debug logging
-    if (sortedPlays.length > 0 && !window._loggedQuarterCalc) {
-      window._loggedQuarterCalc = true
-      console.log('=== QUARTER SCORES CALCULATION ===')
-      console.log('Scoring plays count:', sortedPlays.length)
-      console.log('Calculated away scores:', awayScores)
-      console.log('Calculated home scores:', homeScores)
-      console.log('Sample play:', sortedPlays[0])
-    }
-    
-    return { away: awayScores, home: homeScores }
-  }
-  
-  const calculatedScores = calculateQuarterScores()
-  
-  // Try to get linescores from event data if not found in team data
-  const eventLinescores = summaryData?.boxscore?.linescores || summaryData?.linescores || []
-  const awayLinescoresFinal = awayLinescores.length > 0 ? awayLinescores : 
-    (eventLinescores.find(ls => ls.teamId === awayTeam?.team?.id || ls.team?.id === awayTeam?.team?.id)?.linescores || [])
-  const homeLinescoresFinal = homeLinescores.length > 0 ? homeLinescores : 
-    (eventLinescores.find(ls => ls.teamId === homeTeam?.team?.id || ls.team?.id === homeTeam?.team?.id)?.linescores || [])
-  
-  // Helper to get score for a specific period
-  const getPeriodScore = (linescores, periodNumber, teamType) => {
-    // First try calculated scores from plays (more reliable if API doesn't provide linescores)
-    if (calculatedScores && calculatedScores[teamType] && calculatedScores[teamType][periodNumber] > 0) {
-      return String(calculatedScores[teamType][periodNumber])
-    }
-    
-    // Then try linescores if available
-    if (!linescores || linescores.length === 0) {
-      return '-'
-    }
-    
-    // If linescores is an array, try index-based access (0-based, so period 1 = index 0)
-    if (Array.isArray(linescores)) {
-      const scoreEntry = linescores[periodNumber - 1]
-      if (scoreEntry) {
-        // Handle different data structures
-        if (typeof scoreEntry === 'number') {
-          return String(scoreEntry)
-        }
-        if (typeof scoreEntry === 'object') {
-          const result = scoreEntry.value || scoreEntry.displayValue || scoreEntry.score || scoreEntry.text || '-'
-          if (result !== '-') return result
-        } else {
-          return String(scoreEntry)
-        }
-      }
-      
-      // Also try finding by period number
-      const found = linescores.find(ls => {
-        if (typeof ls === 'object' && ls !== null) {
-          return ls.period === periodNumber || 
-                 ls.period?.number === periodNumber || 
-                 ls.period?.displayValue === String(periodNumber) ||
-                 ls.period?.value === periodNumber
-        }
-        return false
-      })
-      if (found) {
-        const result = found.value || found.displayValue || found.score || found.text || '-'
-        if (result !== '-') return result
-      }
-    }
-    
-    // Fallback to calculated scores from plays
-    if (calculatedScores && calculatedScores[teamType] && calculatedScores[teamType][periodNumber] > 0) {
-      return String(calculatedScores[teamType][periodNumber])
-    }
-    
-    return '-'
-  }
-  
   // Extract player stats and leaders
   // The structure is: leaders = [{ team: {...}, leaders: [{ name: "passingYards", displayName: "Passing Yards", leaders: [{ athlete: {...}, ... }] }] }]
   let leadersData = summaryData?.leaders || boxscore?.leaders || []
@@ -1085,29 +871,6 @@ function GameSummary({ game, onBack, onOpenTeam }) {
     }))
   }
   
-  // Debug: Log leaders structure
-  if (summaryData && !window._loggedLeadersDebug) {
-    window._loggedLeadersDebug = true
-    console.log('=== GAME LEADERS DEBUG ===')
-    console.log('Raw leadersData:', leadersData)
-    console.log('Transformed statCategories:', statCategories)
-    console.log('Away team ID:', awayTeam?.team?.id, game.awayTeamId)
-    console.log('Home team ID:', homeTeam?.team?.id, game.homeTeamId)
-  }
-  const awayPlayers = awayTeam?.statistics?.[0]?.athletes || awayTeam?.players || []
-  const homePlayers = homeTeam?.statistics?.[0]?.athletes || homeTeam?.players || []
-  
-  // Get top performers by category
-  const getTopPlayers = (category) => {
-    const categoryLeaders = leaders.find((l) => l.name === category || l.displayName === category)
-    if (!categoryLeaders) return null
-    
-    const awayLeader = categoryLeaders.leaders?.find((l) => l.team?.id === awayTeam?.team?.id)
-    const homeLeader = categoryLeaders.leaders?.find((l) => l.team?.id === homeTeam?.team?.id)
-    
-    return { away: awayLeader, home: homeLeader, category: categoryLeaders.displayName || categoryLeaders.name }
-  }
-
   const parseNumericValue = (value) => {
     if (value === null || value === undefined) return NaN
     if (typeof value === 'number') return value
@@ -1117,375 +880,13 @@ function GameSummary({ game, onBack, onOpenTeam }) {
     return Number.isNaN(num) ? NaN : num
   }
 
-  const awayScore = Number(game.awayScore) || 0
-  const homeScore = Number(game.homeScore) || 0
-  const totalScore = awayScore + homeScore
-  const awayPercent = totalScore > 0 ? (awayScore / totalScore) * 100 : 50
-  const homePercent = totalScore > 0 ? (homeScore / totalScore) * 100 : 50
-
   // Get team colors and logos from boxscore data if available, otherwise use game data
   const awayColor = getTeamColor(awayTeam?.team, '#888888')
   const homeColor = getTeamColor(homeTeam?.team, '#888888')
-  const awayTeamColor = '#e0e0e0' // Keep headers neutral as requested
-  const homeTeamColor = '#e0e0e0'
+  const awayTeamColor = 'var(--text-primary)' // Keep headers neutral
+  const homeTeamColor = 'var(--text-primary)'
   const awayTeamLogo = awayTeam?.team?.logos?.[0]?.href || awayTeam?.team?.logo || game.awayLogo
   const homeTeamLogo = homeTeam?.team?.logos?.[0]?.href || homeTeam?.team?.logo || game.homeLogo
-
-  // Snapshot Data Extraction
-  const currentDrive = summaryData?.drives?.current
-  
-  // Exhaustive recursive search for situation data in the API response
-  const findSituationInObject = (obj, depth = 0) => {
-    if (!obj || typeof obj !== 'object' || depth > 10) return null;
-    
-    // Check if THIS object is a situation object
-    const hasDown = obj.down !== undefined && obj.down !== null;
-    const hasDist = obj.distance !== undefined && obj.distance !== null;
-    const hasText = !!(obj.downDistanceText || obj.shortDownDistanceText || obj.yardLineText || obj.possessionText);
-    
-    if ((hasDown && hasDist) || hasText) {
-      // Basic validation - if it has down/dist but they are 0/null, keep looking unless it has text
-      if (hasText || (obj.down > 0)) return obj;
-    }
-    
-    // Check children - prioritizing keys that sound like situation
-    const keys = Object.keys(obj);
-    const priorityKeys = keys.filter(k => k.toLowerCase().includes('situation') || k.toLowerCase().includes('lastplay') || k === 'status');
-    const otherKeys = keys.filter(k => !priorityKeys.includes(k) && k !== 'plays' && k !== 'athletes' && k !== 'links');
-    
-    for (const key of [...priorityKeys, ...otherKeys]) {
-      try {
-        if (obj[key] && typeof obj[key] === 'object') {
-          const found = findSituationInObject(obj[key], depth + 1);
-          if (found) return found;
-        }
-      } catch (e) { /* ignore */ }
-    }
-    return null;
-  };
-
-  const situation = game?.situation || 
-                    findSituationInObject(summaryData) || 
-                    summaryData?.situation || 
-                    summaryData?.boxscore?.situation || 
-                    summaryData?.header?.competitions?.[0]?.situation ||
-                    summaryData?.header?.competitions?.[0]?.status?.situation ||
-                    summaryData?.drives?.current?.plays?.[summaryData?.drives?.current?.plays?.length - 1]?.situation ||
-                    summaryData?.header?.competitions?.[0]?.status
-  
-  const winProbabilityData = summaryData?.winprobability || 
-                             summaryData?.winProbability || 
-                             summaryData?.boxscore?.winprobability ||
-                             summaryData?.boxscore?.winProbability ||
-                             summaryData?.predictor?.homeTeam?.winProbability ||
-                             summaryData?.analytics?.winProbability ||
-                             summaryData?.header?.competitions?.[0]?.predictor?.homeTeam?.winProbability ||
-                             summaryData?.header?.competitions?.[0]?.winProbability
-  
-  const getWinProbObj = (data) => {
-    if (!data) return null;
-    
-    // If it's the array from ESPN's winprobability key
-    if (Array.isArray(data)) {
-      if (data.length === 0) return null;
-      const last = data[data.length - 1];
-      
-      // Look for any key that represents home win percentage
-      const hProb = last.homeWinPercentage ?? last.homeWinProbability ?? last.homeProbability ?? last.homeTeamProbability ?? 0.5;
-      const aProb = last.awayWinPercentage ?? last.awayWinProbability ?? last.awayProbability ?? last.awayTeamProbability ?? (1 - hProb);
-      
-      // Normalize to 0-1 scale
-      const hNorm = hProb > 1 ? hProb / 100 : hProb;
-      const aNorm = aProb > 1 ? aProb / 100 : aProb;
-
-      return {
-        homeWinPercentage: hNorm,
-        awayWinPercentage: aNorm,
-        play: last.play,
-        playId: last.playId
-      };
-    }
-    
-    // If it's a single number
-    if (typeof data === 'number') {
-      const norm = data > 1 ? data / 100 : data;
-      return { homeWinPercentage: norm, awayWinPercentage: 1 - norm };
-    }
-    
-    // If it's a single object (like 'predictor' or 'analytics')
-    const hProb = data.homeWinPercentage ?? data.homeWinProbability ?? data.homeTeam?.winProbability ?? data.homeTeamProbability ?? data.homeProbability;
-    const aProb = data.awayWinPercentage ?? data.awayWinProbability ?? data.awayTeam?.winProbability ?? data.awayTeamProbability ?? data.awayProbability ?? (hProb !== undefined ? (hProb > 1 ? 100 - hProb : 1 - hProb) : undefined);
-    
-    if (hProb !== undefined) {
-      const hNorm = hProb > 1 ? hProb / 100 : hProb;
-      const aNorm = aProb > 1 ? aProb / 100 : aProb;
-      return { 
-        homeWinPercentage: hNorm, 
-        awayWinPercentage: aNorm,
-        playId: data.playId
-      };
-    }
-    return null;
-  };
-
-  const winProbability = getWinProbObj(winProbabilityData) || 
-                         getWinProbObj(summaryData?.predictor) || 
-                         getWinProbObj(summaryData?.analytics) ||
-                         getWinProbObj(summaryData?.header?.competitions?.[0]?.predictor);
-  
-  // Try to find the matching play if details are missing from the win prob object
-  if (winProbability && !winProbability.play) {
-    const allPlays = [
-      ...(summaryData?.plays || []),
-      ...(summaryData?.boxscore?.plays || []),
-      ...(summaryData?.drives?.previous?.flatMap(d => d.plays || []) || []),
-      ...(summaryData?.drives?.current?.plays || [])
-    ];
-    const targetPlayId = winProbability.playId;
-    
-    if (targetPlayId) {
-      // Try exact match and partial match (ESPN sometimes has IDs that are prefixes or suffixes)
-      winProbability.play = allPlays.find(p => 
-        String(p.id) === String(targetPlayId) || 
-        String(targetPlayId).includes(String(p.id)) ||
-        String(p.id).includes(String(targetPlayId))
-      );
-    }
-    
-    // If still no play, use the absolute last play from the game summary data
-    if (!winProbability.play && allPlays.length > 0) {
-      winProbability.play = allPlays[allPlays.length - 1];
-    }
-  }
-
-  const possessionTeamId = String(
-    situation?.possession || 
-    situation?.possessionTeam?.id || 
-    situation?.lastPlay?.team?.id || 
-    summaryData?.drives?.current?.team?.id ||
-    summaryData?.header?.competitions?.[0]?.competitors?.find(c => c.possession || c.possessionTeam?.id)?.team?.id ||
-    ''
-  )
-  const isAwayPossession = possessionTeamId !== '' && possessionTeamId === String(awayTeam?.team?.id || game.awayTeamId)
-  const isHomePossession = possessionTeamId !== '' && possessionTeamId === String(homeTeam?.team?.id || game.homeTeamId)
-  
-  // Is it currently halftime?
-  const isHalftime = game.status === 'halftime' || game.statusName?.toLowerCase() === 'halftime'
-
-  // Robust extraction of down and distance
-  const downDistanceText = isHalftime ? 'HALFTIME' : situation?.downDistanceText || 
-                          situation?.shortDownDistanceText ||
-                          (situation?.down !== undefined && situation?.distance !== undefined && situation?.down > 0 ? 
-                            `${situation.down}${situation.down === 1 ? 'st' : situation.down === 2 ? 'nd' : situation.down === 3 ? 'rd' : 'th'} & ${situation.distance}` : null) ||
-                          (summaryData?.drives?.current?.lastPlay?.text?.match(/\d[a-z]{2}\s&\s\d+/) || [])[0] ||
-                          (game.status === 'live' ? 'Live' : '-')
-                          
-  const yardLineText = situation?.yardLineText || 
-                      situation?.possessionText ||
-                      (situation?.yardLine !== undefined ? 
-                        (situation.yardLine === 50 ? 'Midfield' : 
-                         situation.yardLine > 50 ? `${game.homeAbbreviation} ${100 - situation.yardLine}` : 
-                         `${game.awayAbbreviation} ${situation.yardLine}`) : null) ||
-                      (summaryData?.drives?.current?.lastPlay?.text?.match(/at\s([A-Z]+\s\d+)/) || [])[1] ||
-                      '-'
-
-  // Calculate normalized yard line (0-100 where 0 is Away Goal, 100 is Home Goal)
-  const getNormalizedYardLine = () => {
-    const text = String(yardLineText || '').toUpperCase()
-    const homeAbbr = String(game.homeAbbreviation || '').toUpperCase()
-    const awayAbbr = String(game.awayAbbreviation || '').toUpperCase()
-    const rawYL = situation?.yardLine ?? situation?.yardline ?? situation?.location
-    
-    // 1. Try to parse from text (most reliable for territory)
-    if (homeAbbr && text.includes(homeAbbr)) {
-      const match = text.match(/\d+/)
-      if (match) {
-        const dist = parseInt(match[0])
-        if (dist === 50) return 50
-        return 100 - dist
-      }
-    }
-    if (awayAbbr && text.includes(awayAbbr)) {
-      const match = text.match(/\d+/)
-      if (match) return parseInt(match[0])
-    }
-    
-    // 2. Fallback to raw yardLine (if absolute 0-100)
-    if (rawYL !== undefined && rawYL !== null) {
-      const ylNum = parseInt(rawYL)
-      if (ylNum <= 50) {
-        if (text.includes('OPP') || text.includes('OPPONENT') || (homeAbbr && text.includes(homeAbbr) && isAwayPossession)) return 100 - ylNum
-        if (text.includes('OWN') || (awayAbbr && text.includes(awayAbbr) && isAwayPossession)) return ylNum
-      }
-      return ylNum
-    }
-    
-    return null
-  }
-
-  const normalizedYardLine = getNormalizedYardLine()
-
-  const isRedZone = (isAwayPossession && (normalizedYardLine >= 80)) || (isHomePossession && (normalizedYardLine <= 20))
-
-  // Debug win probability
-  useEffect(() => {
-    if (!summaryData) return;
-    console.log('=== WIN PROBABILITY DEBUG ===');
-    console.log('Data found at winprobability:', !!summaryData.winprobability);
-    console.log('Calculated winProbability:', winProbability);
-    if (summaryData.winprobability?.length > 0) {
-      console.log('Last Raw Entry:', summaryData.winprobability[summaryData.winprobability.length - 1]);
-    }
-  }, [summaryData, winProbability]);
-
-  const getTeamStat = (team, statName) => {
-    const stat = team?.statistics?.find(s => s.name === statName)
-    if (!stat) return '0'
-    return typeof stat.displayValue === 'string' ? stat.displayValue : String(stat.value || '0')
-  }
-
-  // Win Probability Chart Component
-  const WinProbabilityChart = ({ data }) => {
-    if (!data || !Array.isArray(data) || data.length < 2) return null;
-
-    const width = 1000;
-    const height = 280; // Slightly taller for labels
-    const padding = 45;
-    const chartWidth = width - (padding * 2);
-    const chartHeight = height - (padding * 2);
-    const centerLineY = height / 2;
-
-    // Helper to calculate seconds elapsed in a standard football game (60 mins)
-    const getSecondsElapsed = (point) => {
-      // Check for period and clock in various locations
-      const period = point.period?.number || point.play?.period?.number || 1;
-      const clockStr = point.clock?.displayValue || point.play?.clock?.displayValue || "15:00";
-      
-      try {
-        const [mins, secs] = clockStr.split(':').map(Number);
-        const secondsInPeriod = (15 * 60) - (mins * 60 + secs);
-        return ((period - 1) * 15 * 60) + secondsInPeriod;
-      } catch (e) {
-        return 0;
-      }
-    };
-
-    const totalGameSeconds = 3600; // 60 minutes for NFL/CFB
-
-    // Map points to SVG coordinates
-    const points = data.map((d, i) => {
-      // Calculate X based on game time elapsed
-      let secondsElapsed = getSecondsElapsed(d);
-      
-      // Fallback if seconds calculation fails or is obviously wrong (e.g. all points at 0)
-      if (isNaN(secondsElapsed) || (secondsElapsed === 0 && i > 0)) {
-        // Linear fallback: assume points are spread across time up to current game clock
-        secondsElapsed = (i / (data.length - 1)) * totalGameSeconds * 0.75;
-      }
-
-      const x = padding + (Math.min(secondsElapsed, totalGameSeconds) / totalGameSeconds) * chartWidth;
-      
-      let homeProb = d.homeWinPercentage ?? d.homeWinProbability ?? d.homeProbability ?? d.homeTeamProbability ?? 0.5;
-      if (homeProb > 1) homeProb = homeProb / 100;
-      
-      // Away win prob 1.0 is top (Y = padding), Away win prob 0.0 is bottom (Y = height - padding)
-      const prob = 1 - homeProb; 
-      const y = height - (padding + (prob * chartHeight));
-      return { x, y, prob };
-    });
-
-    const pathD = `M ${points.map(p => `${p.x},${p.y}`).join(' L ')}`;
-    const areaPath = `${pathD} L ${points[points.length-1].x},${centerLineY} L ${points[0].x},${centerLineY} Z`;
-    
-    const hColor = getTeamColor(homeTeam?.team, '#888888');
-    const aColor = getTeamColor(awayTeam?.team, '#444444');
-
-  return (
-      <div className="win-prob-chart-container" style={{ height: '220px' }}>
-        <svg viewBox={`0 0 ${width} ${height}`} className="win-prob-chart-svg" preserveAspectRatio="none" style={{ overflow: 'visible' }}>
-          <defs>
-            <linearGradient id="awayGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={aColor} stopOpacity="0.4" />
-              <stop offset="100%" stopColor={aColor} stopOpacity="0.1" />
-            </linearGradient>
-            <linearGradient id="homeGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={hColor} stopOpacity="0.1" />
-              <stop offset="100%" stopColor={hColor} stopOpacity="0.4" />
-            </linearGradient>
-            <clipPath id="clip-away">
-              <rect x="0" y="0" width={width} height={centerLineY} />
-            </clipPath>
-            <clipPath id="clip-home">
-              <rect x="0" y={centerLineY} width={width} height={height - centerLineY} />
-            </clipPath>
-          </defs>
-
-          {/* Vertical Grid Lines (Quarter Markers) */}
-          {[0, 0.25, 0.5, 0.75, 1].map(p => (
-            <line 
-              key={p} 
-              x1={padding + (chartWidth * p)} 
-              y1={padding} 
-              x2={padding + (chartWidth * p)} 
-              y2={height-padding} 
-              stroke="rgba(255,255,255,0.15)" 
-              strokeWidth="2"
-              strokeDasharray="4 4"
-            />
-          ))}
-
-          {/* Horizontal Grid Lines */}
-          <line x1={padding} y1={centerLineY} x2={width-padding} y2={centerLineY} stroke="rgba(255,255,255,0.4)" strokeWidth="2" />
-          <line x1={padding} y1={padding} x2={width-padding} y2={padding} stroke="rgba(255,255,255,0.15)" strokeDasharray="4 4" />
-          <line x1={padding} y1={height-padding} x2={width-padding} y2={height-padding} stroke="rgba(255,255,255,0.15)" strokeDasharray="4 4" />
-
-          {/* Right side labels */}
-          <text x={width-padding + 15} y={padding + 8} fill="var(--text-muted)" fontSize="26" fontWeight="600">100</text>
-          <text x={width-padding + 15} y={centerLineY + 10} fill="var(--text-muted)" fontSize="26" fontWeight="600">50</text>
-          <text x={width-padding + 15} y={height-padding + 8} fill="var(--text-muted)" fontSize="26" fontWeight="600">100</text>
-
-          {/* Shaded Areas */}
-          <path d={areaPath} fill="url(#awayGradient)" clipPath="url(#clip-away)" />
-          <path d={areaPath} fill="url(#homeGradient)" clipPath="url(#clip-home)" />
-          
-          {/* The Data Path (Solid White) */}
-          <path 
-            d={pathD} 
-            fill="none" 
-            stroke="#fff" 
-            strokeWidth="5" 
-            strokeLinecap="round" 
-            style={{ filter: 'drop-shadow(0px 0px 4px rgba(0,0,0,0.5))' }}
-          />
-          
-          {/* Current Position Marker */}
-          {points.length > 0 && (
-            <circle 
-              cx={points[points.length-1].x} 
-              cy={points[points.length-1].y} 
-              r="7" 
-              fill="#fff" 
-              style={{ filter: 'drop-shadow(0px 0px 8px rgba(255,255,255,1))' }}
-            />
-          )}
-        </svg>
-        <div className="chart-labels" style={{ 
-          display: 'flex', 
-          width: '100%', 
-          padding: `0 ${padding}px`, 
-          marginTop: '15px',
-          justifyContent: 'space-between'
-        }}>
-          <span style={{ width: '0', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600' }}></span>
-          <span style={{ flex: '1', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600', transform: 'translateX(-50%)' }}>1ST</span>
-          <span style={{ flex: '1', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600', transform: 'translateX(-50%)' }}>2ND</span>
-          <span style={{ flex: '1', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600', transform: 'translateX(-50%)' }}>3RD</span>
-          <span style={{ flex: '1', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600', transform: 'translateX(-50%)' }}>4TH</span>
-          <span style={{ width: '0' }}></span>
-        </div>
-      </div>
-    );
-  };
 
   // Helper Components for the new layout
   const StandingsSection = ({ data }) => {
@@ -2342,43 +1743,18 @@ function GameSummary({ game, onBack, onOpenTeam }) {
 
   // Reusable: Win Probability section
   const renderWinProbability = () => {
-    if (!winProbability) return null
+    if (!wpSeries.length) return null
     return (
-      <div className="win-probability-section">
-        <div className="section-header-row" style={{ borderBottom: '1px dotted rgba(255,255,255,0.2)', paddingBottom: '10px' }}>
-          <span className="section-title-main" style={{ fontSize: '0.9rem', fontWeight: '800', letterSpacing: '1px' }}>WIN PROBABILITY</span>
-        </div>
-        <div className="win-prob-header-new" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 0' }}>
-          <div className="win-prob-side away" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <img src={awayTeamLogo} alt="" style={{ width: '48px', height: '48px', objectFit: 'contain' }} />
-            <div className="win-prob-data" style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: '1.6rem', fontWeight: '800', lineHeight: '1' }}>{((winProbability.awayWinPercentage ?? 0.5) * 100).toFixed(1)}%</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '4px' }}>
-                <span style={{ width: '12px', height: '3px', borderRadius: '1.5px', backgroundColor: getTeamColor(awayTeam?.team, '#888888') }}></span>
-                <span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-muted)' }}>{game.awayAbbreviation}</span>
-              </div>
-            </div>
-          </div>
-          <div className="win-prob-side home" style={{ display: 'flex', alignItems: 'center', gap: '12px', textAlign: 'right' }}>
-            <div className="win-prob-data" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-              <span style={{ fontSize: '1.6rem', fontWeight: '800', lineHeight: '1' }}>{((winProbability.homeWinPercentage ?? 0.5) * 100).toFixed(1)}%</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '4px' }}>
-                <span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-muted)' }}>{game.homeAbbreviation}</span>
-                <span style={{ width: '12px', height: '3px', borderRadius: '1.5px', backgroundColor: getTeamColor(homeTeam?.team, '#888888') }}></span>
-              </div>
-            </div>
-            <img src={homeTeamLogo} alt="" style={{ width: '48px', height: '48px', objectFit: 'contain' }} />
-          </div>
-        </div>
-        {Array.isArray(winProbabilityData) && <WinProbabilityChart data={winProbabilityData} />}
-        {winProbability.play && (
-          <div className="last-play-card-simple" style={{ marginTop: '15px', padding: '10px', borderRadius: '4px', background: 'rgba(255,255,255,0.03)' }}>
-            <div className="last-play-summary-text" style={{ fontSize: '0.8rem', lineHeight: '1.4' }}>
-              <strong style={{ color: 'var(--text-muted)' }}>Last Play:</strong> {winProbability.play.text}
-            </div>
-          </div>
-        )}
-      </div>
+      <Section title="Win Probability">
+        <WinProbability
+          series={wpSeries}
+          game={game}
+          awayColor={awayColor}
+          homeColor={homeColor}
+          awayLogo={awayTeamLogo}
+          homeLogo={homeTeamLogo}
+        />
+      </Section>
     )
   }
 
@@ -2462,32 +1838,7 @@ function GameSummary({ game, onBack, onOpenTeam }) {
             </div>
           ) : (
             <>
-              <div className="quarter-scores-table">
-                <table className="quarter-table">
-                  <thead>
-                    <tr>
-                      <th></th>
-                      {[1, 2, 3, 4].map(q => <th key={q}>{q}</th>)}
-                      {game.sport === 'nfl' && <th>OT</th>}
-                      <th className="total-score">T</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td className="team-abbr">{game.awayAbbreviation || 'AWY'}</td>
-                      {[1, 2, 3, 4].map(q => <td key={q}>{getPeriodScore(awayLinescoresFinal, q, 'away')}</td>)}
-                      {game.sport === 'nfl' && <td>{getPeriodScore(awayLinescoresFinal, 5, 'away')}</td>}
-                      <td className="total-score">{game.awayScore || '0'}</td>
-                    </tr>
-                    <tr>
-                      <td className="team-abbr">{game.homeAbbreviation || 'HME'}</td>
-                      {[1, 2, 3, 4].map(q => <td key={q}>{getPeriodScore(homeLinescoresFinal, q, 'home')}</td>)}
-                      {game.sport === 'nfl' && <td>{getPeriodScore(homeLinescoresFinal, 5, 'home')}</td>}
-                      <td className="total-score">{game.homeScore || '0'}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+              <Linescore linescore={linescore} />
               {game.broadcastChannel && <div className="broadcast-info">{abbreviateNetwork(game.broadcastChannel)}</div>}
             </>
           )}
@@ -2513,7 +1864,8 @@ function GameSummary({ game, onBack, onOpenTeam }) {
 
   // ─── PREVIEW LAYOUT (scheduled games) ───
   const renderPreviewLayout = () => (
-    <div className="preview-layout">
+    <div className="preview-layout gd-grid">
+      <div className="gd-main">
       {/* Team Comparison */}
       {awayTeam?.statistics && homeTeam?.statistics && (
         <div className="standings-section">
@@ -2560,41 +1912,102 @@ function GameSummary({ game, onBack, onOpenTeam }) {
         </div>
       )}
 
-      {/* Season Leaders */}
-      {renderLeaders('SEASON LEADERS')}
-
-      {/* Division Standings */}
-      {renderStandings()}
+      <InjuryReport injuries={injuries} game={game} />
+      </div>
+      <aside className="gd-side">
+        {renderLeaders('SEASON LEADERS')}
+        {renderStandings()}
+        <GameInfo rows={gameInfoRows} />
+      </aside>
     </div>
   )
 
-  // ─── LIVE LAYOUT (in-progress games) ───
-  const renderLiveLayout = () => (
+  // ─── LIVE / FINAL LAYOUT ───
+  const detailTabs = [
+    { id: 'gamecast', label: gameState === 'live' ? 'Gamecast' : 'Recap' },
+    { id: 'plays', label: 'Play-by-Play' },
+    { id: 'boxscore', label: 'Box Score' },
+    { id: 'teamstats', label: 'Team Stats' },
+  ].filter((t) => {
+    if (t.id === 'plays') return getAllPlays(summaryData, game.sport).length > 0
+    if (t.id === 'teamstats') return !!awayTeam?.statistics?.length
+    if (t.id === 'boxscore') return !!boxscore?.players?.length
+    return true
+  })
+  const currentTab = detailTabs.some((t) => t.id === detailTab) ? detailTab : 'gamecast'
+
+  const renderGamecast = () => (
+    <div className="gd-grid">
+      <div className="gd-main">
+        {footballSituation && (
+          <Section
+            title="Field"
+            right={
+              <span className="gd-timeouts-row">
+                <span>{game.awayAbbreviation}</span><Timeouts count={footballSituation.awayTimeouts} />
+                <span>{game.homeAbbreviation}</span><Timeouts count={footballSituation.homeTimeouts} />
+              </span>
+            }
+          >
+            <FootballField situation={footballSituation} game={game} awayColor={awayColor} homeColor={homeColor} />
+            {footballSituation.lastPlayText && (
+              <div className="gd-lastplay"><span className="gd-muted">Last play:</span> {footballSituation.lastPlayText}</div>
+            )}
+          </Section>
+        )}
+        {renderWinProbability()}
+        {scoringPlays.length > 0 && (
+          <Section title="Scoring Summary">
+            <ScoringSummary plays={scoringPlays} game={game} awayLogo={awayTeamLogo} homeLogo={homeTeamLogo} />
+          </Section>
+        )}
+      </div>
+      <aside className="gd-side">
+        {renderLeaders(gameState === 'live' ? 'GAME LEADERS' : 'TOP PERFORMERS')}
+        {renderTeamStatsSidebar()}
+        {seasonSeries && (
+          <Section title="Season Series"><div className="gd-series">{seasonSeries}</div></Section>
+        )}
+        {renderStandings()}
+        <GameInfo rows={gameInfoRows} />
+      </aside>
+    </div>
+  )
+
+  const renderInProgressOrFinal = () => (
     <div className="game-summary-simple">
-      {renderBoxScoreTab()}
+      {renderHeader()}
+      <Tabs tabs={detailTabs} active={currentTab} onChange={setDetailTab} />
+      {currentTab === 'gamecast' && renderGamecast()}
+      {currentTab === 'plays' && (
+        <PlayByPlay summary={summaryData} game={game} awayLogo={awayTeamLogo} homeLogo={homeTeamLogo} />
+      )}
+      {currentTab === 'boxscore' && renderBoxScoreTab()}
+      {currentTab === 'teamstats' && renderTeamStatsTab()}
     </div>
   )
 
-  const renderFinalLayout = () => (
-    <div className="game-summary-simple">
-      {renderBoxScoreTab()}
-    </div>
-  )
+  const isSoccer = SOCCER_SPORT_KEYS.includes(game.sport)
+  const isUfc = game.sport === 'ufc'
 
   return (
-    <div className={`game-summary-container${SOCCER_SPORT_KEYS.includes(game.sport) ? ' gsc-wide' : ''}`}>
-      {isLoading && game.sport !== 'ufc' && <div className="info">Loading game summary...</div>}
-      {error && game.sport !== 'ufc' && <div className="error">Error loading summary: {error}</div>}
+    <div className={`game-summary-container${isSoccer ? ' gsc-wide' : ''}`}>
+      <button className="back-btn" onClick={onBack} aria-label="Back to scores">
+        <span aria-hidden="true">←</span> Scores
+      </button>
+      {isLoading && !summaryData && !isUfc && <SummarySkeleton />}
+      {error && !isUfc && <div className="error">Error loading summary: {error}</div>}
 
-      {(summaryData || game.sport === 'ufc') && (
-        SOCCER_SPORT_KEYS.includes(game.sport) ? (
+      {(summaryData || isUfc) && (
+        isSoccer ? (
           <div className="game-summary-simple game-summary-soccer">{renderBoxScoreTab()}</div>
+        ) : isUfc ? (
+          <div className="game-summary-simple">{renderBoxScoreTab()}</div>
         ) : (
           <>
             {gameState === 'preview' && renderHeader()}
             {gameState === 'preview' && renderPreviewLayout()}
-            {gameState === 'live' && renderLiveLayout()}
-            {gameState === 'final' && renderFinalLayout()}
+            {gameState !== 'preview' && renderInProgressOrFinal()}
           </>
         )
       )}
@@ -2602,7 +2015,7 @@ function GameSummary({ game, onBack, onOpenTeam }) {
   )
 }
 
-function TeamPage({ team, onBack }) {
+function TeamPage({ team, onBack, isFavorite, onToggleFavorite }) {
   const [teamInfo, setTeamInfo] = useState(null)
   const [roster, setRoster] = useState(null)
   const [schedule, setSchedule] = useState(null)
@@ -2755,10 +2168,15 @@ function TeamPage({ team, onBack }) {
     )
   }
 
+  const favorite = !!isFavorite?.(team.sport, team.teamId)
+
   return (
     <div className="team-page-container">
+      <button className="back-btn" onClick={onBack} aria-label="Back">
+        <span aria-hidden="true">←</span> Back
+      </button>
       {isLoading ? (
-        <div className="info">Loading team data...</div>
+        <SummarySkeleton />
       ) : (
         <>
           {/* Team Header */}
@@ -2773,6 +2191,16 @@ function TeamPage({ team, onBack }) {
                 <div className="team-page-standing">{teamData.standingSummary}</div>
               )}
             </div>
+            {onToggleFavorite && (
+              <button
+                type="button"
+                className={`fav-pill ${favorite ? 'on' : ''}`}
+                aria-pressed={favorite}
+                onClick={() => onToggleFavorite({ sport: team.sport, teamId: team.teamId, name: teamName, logo: teamLogo, abbreviation: team.teamAbbreviation })}
+              >
+                {favorite ? '★ Following' : '☆ Follow'}
+              </button>
+            )}
           </div>
 
           {/* Tabs */}
@@ -2884,6 +2312,31 @@ function TeamPage({ team, onBack }) {
   )
 }
 
+function ThemeIcon({ mode }) {
+  const common = { width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true }
+  if (mode === 'light') {
+    return (
+      <svg {...common}>
+        <circle cx="12" cy="12" r="4" />
+        <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+      </svg>
+    )
+  }
+  if (mode === 'dark') {
+    return (
+      <svg {...common}>
+        <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+      </svg>
+    )
+  }
+  return (
+    <svg {...common}>
+      <rect x="3" y="4" width="18" height="12" rx="2" />
+      <path d="M8 20h8M12 16v4" />
+    </svg>
+  )
+}
+
 function App() {
   const today = useMemo(() => stripTime(new Date()), [])
   const baseMonday = useMemo(() => getMonday(today), [today])
@@ -2898,6 +2351,32 @@ function App() {
   const [showLiveOnly, setShowLiveOnly] = useState(false)
 
   const { scores, isLoading, error } = useScores(currentDate)
+  const { favorites, isFavorite, toggleFavorite, gameHasFavorite } = useFavorites()
+  const { mode: themeMode, cycle: cycleTheme } = useTheme()
+  const listScrollRef = useRef(0)
+
+  // The selected game is a snapshot; swap in the freshest copy from the
+  // auto-refreshing scoreboard so the detail page stays live.
+  const activeGame = useMemo(() => {
+    if (!selectedGame) return null
+    return scores.find((g) => g.id === selectedGame.id && g.sport === selectedGame.sport) ?? selectedGame
+  }, [scores, selectedGame])
+
+  // Browser/phone back button closes the team page, then the game page.
+  useEffect(() => {
+    const onPop = (e) => {
+      const view = e.state?.qsView
+      if (view === 'game') {
+        setSelectedTeam(null)
+      } else if (!view) {
+        setSelectedTeam(null)
+        setSelectedGame(null)
+        requestAnimationFrame(() => window.scrollTo(0, listScrollRef.current))
+      }
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
 
   const dateInputRef = useRef(null)
 
@@ -2967,19 +2446,38 @@ function App() {
   }
 
   const handleOpenGameSummary = (game) => {
+    if (!selectedGame && !selectedTeam) listScrollRef.current = window.scrollY
     setSelectedTeam(null)
     setSelectedGame(game)
+    try { window.history.pushState({ qsView: 'game' }, '') } catch { /* ignore */ }
+    window.scrollTo(0, 0)
   }
 
   const handleOpenTeamPage = (teamInfo) => {
+    if (!selectedGame && !selectedTeam) listScrollRef.current = window.scrollY
     setSelectedTeam(teamInfo)
+    try { window.history.pushState({ qsView: 'team' }, '') } catch { /* ignore */ }
+    window.scrollTo(0, 0)
   }
 
-  const handleBackFromTeam = () => {
-    setSelectedTeam(null)
+  // In-app back buttons mirror the browser back button.
+  const handleBack = () => {
+    if (window.history.state?.qsView) {
+      window.history.back()
+      return
+    }
+    if (selectedTeam) {
+      setSelectedTeam(null)
+    } else {
+      setSelectedGame(null)
+      requestAnimationFrame(() => window.scrollTo(0, listScrollRef.current))
+    }
   }
 
   const handleBackToScores = () => {
+    if (window.history.state?.qsView) {
+      try { window.history.replaceState(null, '') } catch { /* ignore */ }
+    }
     setSelectedTeam(null)
     setSelectedGame(null)
     setWeekOffset(0)
@@ -2993,9 +2491,11 @@ function App() {
     let baseScores =
       selectedSport === 'all'
         ? scores
-        : selectedSport === 'soccer'
-          ? scores.filter((game) => SOCCER_SPORT_KEYS.includes(game.sport))
-          : scores.filter((game) => game.sport === selectedSport)
+        : selectedSport === 'favorites'
+          ? scores.filter(gameHasFavorite)
+          : selectedSport === 'soccer'
+            ? scores.filter((game) => SOCCER_SPORT_KEYS.includes(game.sport))
+            : scores.filter((game) => game.sport === selectedSport)
 
     if (showLiveOnly) {
       baseScores = baseScores.filter(game => game.status === 'live' || game.status === 'halftime')
@@ -3004,24 +2504,57 @@ function App() {
     const copy = [...baseScores]
     copy.sort(compareGames)
     return copy
-  }, [scores, selectedSport, showLiveOnly])
+  }, [scores, selectedSport, showLiveOnly, gameHasFavorite])
+
+  // Pin games featuring favorite teams to the top of the list.
+  const favoriteGames = useMemo(
+    () => (selectedSport === 'favorites' ? [] : sortedScores.filter(gameHasFavorite)),
+    [sortedScores, gameHasFavorite, selectedSport],
+  )
+  const otherGames = useMemo(
+    () => (favoriteGames.length ? sortedScores.filter((g) => !gameHasFavorite(g)) : sortedScores),
+    [sortedScores, favoriteGames, gameHasFavorite],
+  )
 
 
   const liveCount = useMemo(() => {
     const sportScores =
       selectedSport === 'all'
         ? scores
-        : selectedSport === 'soccer'
-          ? scores.filter((game) => SOCCER_SPORT_KEYS.includes(game.sport))
-          : scores.filter((game) => game.sport === selectedSport)
+        : selectedSport === 'favorites'
+          ? scores.filter(gameHasFavorite)
+          : selectedSport === 'soccer'
+            ? scores.filter((game) => SOCCER_SPORT_KEYS.includes(game.sport))
+            : scores.filter((game) => game.sport === selectedSport)
     return sportScores.filter((game) => game.status === 'live' || game.status === 'halftime').length
-  }, [scores, selectedSport])
+  }, [scores, selectedSport, gameHasFavorite])
+
+  const renderCard = (game, highlight = false) => (
+    <ScoreCard
+      key={`${game.sport}-${game.id ?? `${game.awayTeam}-${game.homeTeam}`}`}
+      game={game}
+      onOpenSummary={handleOpenGameSummary}
+      onOpenTeam={handleOpenTeamPage}
+      isFavorite={isFavorite}
+      onToggleFavorite={toggleFavorite}
+      highlight={highlight}
+    />
+  )
+
+  const emptyMessage =
+    selectedSport === 'favorites'
+      ? favorites.length
+        ? 'None of your teams play on this date.'
+        : 'Tap the ☆ next to any team to follow it. Their games will show up here and at the top of the list.'
+      : showLiveOnly
+        ? 'No live games right now.'
+        : 'No games scheduled for this date.'
 
   // Show team page > game summary > score list (priority order)
   const mainContent = selectedTeam ? (
-    <TeamPage team={selectedTeam} onBack={handleBackFromTeam} />
-  ) : selectedGame ? (
-    <GameSummary game={selectedGame} onBack={handleBackToScores} onOpenTeam={handleOpenTeamPage} />
+    <TeamPage team={selectedTeam} onBack={handleBack} isFavorite={isFavorite} onToggleFavorite={toggleFavorite} />
+  ) : activeGame ? (
+    <GameSummary key={`${activeGame.sport}-${activeGame.id}`} game={activeGame} onBack={handleBack} onOpenTeam={handleOpenTeamPage} />
   ) : (
     <>
       <div className="date-navigation">
@@ -3071,18 +2604,22 @@ function App() {
         {error ? (
           <div className="error">Unable to load scores. Please try again.</div>
         ) : sortedScores.length === 0 ? (
-          <div className="info">
-            {isLoading ? 'Loading scores…' : 'No games scheduled for this date.'}
-          </div>
+          isLoading ? (
+            <ScoresSkeleton />
+          ) : (
+            <div className="info empty-state">{emptyMessage}</div>
+          )
         ) : (
-          sortedScores.map((game) => (
-            <ScoreCard
-              key={game.id ?? `${game.sport}-${game.awayTeam}-${game.homeTeam}`}
-              game={game}
-              onOpenSummary={handleOpenGameSummary}
-              onOpenTeam={handleOpenTeamPage}
-            />
-          ))
+          <>
+            {favoriteGames.length > 0 && (
+              <>
+                <h2 className="scores-group-title"><span className="star">★</span> Your Teams</h2>
+                {favoriteGames.map((game) => renderCard(game, true))}
+                <h2 className="scores-group-title">All Games</h2>
+              </>
+            )}
+            {otherGames.map((game) => renderCard(game, selectedSport === 'favorites'))}
+          </>
         )}
       </div>
     </>
@@ -3110,7 +2647,15 @@ function App() {
               <span>Live</span>
               <span className="count">{liveCount}</span>
             </div>
-            <div className="filter-divider"></div>
+            {liveCount > 0 && <div className="filter-divider"></div>}
+            <button
+              className={['sport-btn', 'fav-filter', selectedSport === 'favorites' ? 'active' : ''].filter(Boolean).join(' ')}
+              onClick={() => handleSportClick('favorites')}
+              aria-label="Show favorite teams"
+              title="Your teams"
+            >
+              ★<span className="fav-filter-label"> Mine</span>
+            </button>
             {SPORT_BUTTONS.map((button) => (
               <button
                 key={button.value}
@@ -3127,6 +2672,15 @@ function App() {
         </div>
 
         <div className="header-right">
+          <button
+            type="button"
+            className="theme-toggle"
+            onClick={cycleTheme}
+            aria-label={`Theme: ${themeMode}. Click to change.`}
+            title={`Theme: ${themeMode}`}
+          >
+            <ThemeIcon mode={themeMode} />
+          </button>
         </div>
       </div>
 
@@ -3134,7 +2688,7 @@ function App() {
         {mainContent}
       </div>
 
-      {!selectedGame && (
+      {!activeGame && !selectedTeam && (
         <footer className="site-footer">
           <a 
             href="https://buymeacoffee.com/ryanc0804" 

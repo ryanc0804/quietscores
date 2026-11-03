@@ -14,6 +14,11 @@ Features
 - **Responsive Design**: Works perfectly on desktop, tablet, and mobile devices
 - **Auto-refresh**: Automatically updates scores every 5 seconds for live games, 60 seconds otherwise
 - **Modern UI**: Beautiful dark theme with clean card-based layout
+- **Favorite Teams**: Star any team to pin its games to the top (saved in your browser), or tap ★ Mine to see only your teams
+- **Light / Dark / System Theme**: Toggle in the header
+- **Gamecast**: Live football field with down & distance, interactive win-probability chart, scoring summary, and game leaders
+- **Play-by-Play**: Expandable drives for football, period-by-period plays for other sports, with a scoring-only filter
+- **Injury Report & Game Info**: Shown on game previews (venue, weather, officials, line)
 
 Tech Stack
 
