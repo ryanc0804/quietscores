@@ -36,7 +36,21 @@ Accounts are **email + password only**. **Authentication → Providers → Email
 default; leave "Confirm email" on so new users verify their address before signing in.
 No other providers need to be enabled.
 
-## 5. Email delivery (before launch)
-Supabase's built-in email sender is rate-limited (a few emails per hour) and meant
-for testing. For real users, set up custom SMTP under **Authentication → Emails → SMTP**
-(e.g. Resend, Postmark, SendGrid).
+## 5. Email delivery (Resend)
+Supabase's built-in email sender only sends 2 emails an hour, so sign-ups past that
+fail. Auth emails go out through [Resend](https://resend.com) instead (free tier:
+3,000 emails a month, 100 a day).
+
+1. **Resend → Domains → Add domain**: `scoresnstats.com`.
+2. Add the DNS records Resend lists (a DKIM `TXT`, plus an `MX` and SPF `TXT` on the
+   `send` subdomain) in **Vercel → Domains → scoresnstats.com → DNS Records**, then
+   click **Verify** in Resend.
+3. **Resend → API Keys → Create**: permission *Sending access*, domain `scoresnstats.com`.
+4. **Supabase → Authentication → Emails → SMTP Settings** → enable custom SMTP:
+   - Sender email `noreply@scoresnstats.com`, sender name `Scores n Stats`
+   - Host `smtp.resend.com`, port `465`, username `resend`
+   - Password: the Resend API key
+5. Turning on custom SMTP raises *Authentication → Rate Limits → sending emails* from
+   2 to 30 an hour; raise it further there if needed (Resend's free cap is 100 a day).
+
+Check the domain's status in Resend if confirmation emails stop arriving.
