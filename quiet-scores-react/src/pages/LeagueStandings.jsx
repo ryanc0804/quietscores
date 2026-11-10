@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { fetchLeagueStandings } from '../lib/standings'
+import { conferenceOrder, fetchLeagueStandings } from '../lib/standings'
+import { ConferenceBar } from '../components/ConferenceBar'
 
 function Logo({ src }) {
   const [failed, setFailed] = useState(false)
@@ -9,10 +10,11 @@ function Logo({ src }) {
 
 /**
  * A league's standings (the Standings view of the scores page): conference
- * sections of division tables, or conference tables for college. Teams open
- * their team page.
+ * sections of division tables, or for college one conference at a time with
+ * a picker (`conference` is the one remembered from the scores page, by its
+ * short name; SEC otherwise). Teams open their team page.
  */
-export function LeagueStandings({ sport, onOpenTeam }) {
+export function LeagueStandings({ sport, onOpenTeam, conference, onConference }) {
   // Tagged with the sport so switching sports never shows the old table.
   const [result, setResult] = useState(null) // { sport, data } | { sport, error }
   const data = result?.sport === sport ? result.data : null
@@ -40,9 +42,26 @@ export function LeagueStandings({ sport, onOpenTeam }) {
       teamAbbreviation: e.team.abbreviation,
     })
 
+  let sections = data.sections
+  let picker = null
+  if (sport.startsWith('college')) {
+    const tables = conferenceOrder(sections.flatMap((s) => s.tables))
+    const current = tables.find((t) => t.short === conference) || tables.find((t) => t.short === 'SEC') || tables[0]
+    sections = current ? [{ title: null, tables: [current] }] : []
+    picker = (
+      <ConferenceBar
+        options={tables.map((t) => ({ name: t.short }))}
+        selected={current?.short}
+        onSelect={onConference}
+        showAll={false}
+      />
+    )
+  }
+
   return (
-    <div className="league-standings">
-      {data.sections.map((section, si) => (
+    <div className={`league-standings ${picker ? 'one-table' : ''}`}>
+      {picker}
+      {sections.map((section, si) => (
         <section key={section.title || si} className="league-section">
           {section.title && <h2 className="pg-section-title">{section.title}</h2>}
           <div className="league-tables">

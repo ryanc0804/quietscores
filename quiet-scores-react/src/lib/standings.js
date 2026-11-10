@@ -63,7 +63,7 @@ export async function fetchLeagueStandings(sport) {
   const data = await fetchStandings(sport, { divisions: BY_DIVISION.has(sport) })
   if (!data) throw new Error('No standings')
   const columns = COLUMNS[sport.startsWith('college') ? 'college' : sport] || COLUMNS.nba
-  const table = (g) => ({ name: g.name, rows: sortEntries(sport, g.standings?.entries || []) })
+  const table = (g) => ({ name: g.name, short: g.shortName || g.name, rows: sortEntries(sport, g.standings?.entries || []) })
   const sections = []
   for (const top of data.children || []) {
     if (top.children?.length) {
@@ -76,4 +76,16 @@ export async function fetchLeagueStandings(sport) {
     }
   }
   return { columns, sections: sections.filter((s) => s.tables.length) }
+}
+
+// College conferences shown first in the picker; the rest follow A–Z.
+const MAJOR_CONFERENCES = ['SEC', 'Big Ten', 'Big 12', 'ACC', 'Big East']
+
+/** College standings tables ordered for the conference picker. */
+export function conferenceOrder(tables) {
+  const rank = (t) => {
+    const i = MAJOR_CONFERENCES.indexOf(t.short)
+    return i === -1 ? MAJOR_CONFERENCES.length : i
+  }
+  return [...tables].sort((a, b) => rank(a) - rank(b) || a.short.localeCompare(b.short))
 }

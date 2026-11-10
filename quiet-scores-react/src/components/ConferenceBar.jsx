@@ -12,7 +12,7 @@ function Chevron({ dir }) {
  * College conference filter, styled like the sport bar. When the chips don't
  * fit, arrow buttons appear on the side(s) that have more, and the edges fade.
  */
-export function ConferenceBar({ options, selected, onSelect }) {
+export function ConferenceBar({ options, selected, onSelect, showAll = true }) {
   const trackRef = useRef(null)
   const [edges, setEdges] = useState({ left: false, right: false })
 
@@ -65,7 +65,7 @@ export function ConferenceBar({ options, selected, onSelect }) {
         </button>
       )}
       <div className="conference-bar" role="toolbar" aria-label="Filter by conference" ref={trackRef} onScroll={measure}>
-        {chip('all', 'All', null)}
+        {showAll && chip('all', 'All', null)}
         {options.map((c) => chip(c.name, c.name, c.count))}
       </div>
       {edges.right && (

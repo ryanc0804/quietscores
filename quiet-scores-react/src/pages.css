@@ -475,36 +475,35 @@
 }
 
 /* ===== League views: Scores · Standings · Leaders ===== */
+/* A tab row under the sport bar, like the tabs on team and player pages. */
 .league-switch {
     display: flex;
-    width: fit-content;
-    margin: 14px auto 0;
-    padding: 3px;
-    gap: 2px;
-    border-radius: 10px;
-    background: rgba(var(--overlay), 0.04);
-    border: 1px solid rgba(var(--overlay), 0.06);
+    justify-content: center;
+    gap: 26px;
+    margin: 0 0 6px;
+    border-bottom: 1px solid var(--border-primary);
 }
 .league-switch button {
-    padding: 6px 16px;
+    padding: 11px 2px 9px;
     border: none;
-    border-radius: 7px;
-    background: transparent;
-    color: var(--text-secondary);
+    border-bottom: 2px solid transparent;
+    background: none;
+    color: var(--text-muted);
     font: inherit;
-    font-size: 0.82rem;
-    font-weight: 700;
+    font-size: 0.86rem;
+    font-weight: 600;
     cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease;
+    transition: color 0.15s ease, border-color 0.15s ease;
 }
 .league-switch button:hover { color: var(--text-primary); }
-.league-switch button.active { background: var(--chip-active-bg); color: var(--chip-active-fg); }
+.league-switch button.active { color: var(--text-primary); font-weight: 700; border-bottom-color: var(--text-primary); }
 
 .league-page { max-width: 1180px; margin: 18px auto 48px; padding: 0 10px; text-align: left; }
 .league-status { padding: 48px 20px; text-align: center; color: var(--text-secondary); }
 
 .league-section + .league-section { margin-top: 26px; }
-.league-tables { display: grid; grid-template-columns: repeat(auto-fit, minmax(460px, 1fr)); gap: 16px; }
+.league-tables { display: grid; grid-template-columns: repeat(auto-fit, minmax(460px, 1fr)); gap: 16px; align-items: start; }
+.league-standings.one-table .league-tables { grid-template-columns: 1fr; max-width: 760px; margin: 14px auto 0; }
 .league-table-card { padding: 8px 12px; }
 .league-table-card .pg-table th.left { color: var(--text-secondary); font-weight: 800; }
 .league-team { padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; text-align: left; }

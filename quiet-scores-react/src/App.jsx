@@ -2556,7 +2556,12 @@ function App() {
       )}
       {activeLeagueView === 'standings' ? (
         <div className="league-page">
-          <LeagueStandings sport={selectedSport} onOpenTeam={handleOpenTeamPage} />
+          <LeagueStandings
+            sport={selectedSport}
+            onOpenTeam={handleOpenTeamPage}
+            conference={conferenceBySport[selectedSport]}
+            onConference={setSelectedConference}
+          />
         </div>
       ) : activeLeagueView === 'leaders' ? (
         <div className="league-page">
