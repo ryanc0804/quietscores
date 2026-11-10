@@ -1503,19 +1503,24 @@ body.pwa-mode {
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
 }
+.wp-label { font-weight: 700; }
+/* Away team's share on the left, home team's on the right, in team colors. */
 .wp-bar {
-    width: 36px;
-    height: 4px;
-    border-radius: 2px;
-    background: rgba(var(--overlay), 0.12);
+    display: flex;
+    gap: 1px;
+    width: 48px;
+    height: 5px;
+    border-radius: 3px;
     overflow: hidden;
 }
 .wp-bar > span {
-    display: block;
     height: 100%;
-    border-radius: 2px;
-    background: var(--text-secondary);
+    background: var(--text-muted);
     transition: width 0.6s ease;
+}
+.wp-bar > span:last-child {
+    flex: 1;
+    background: rgba(var(--overlay), 0.3);
 }
 
 /* Possession/At-bat: a small ball after the team name (PossessionIcon). */

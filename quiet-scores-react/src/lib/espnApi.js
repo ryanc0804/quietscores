@@ -57,6 +57,12 @@ const ESPN_SUMMARY_APIS = {
   ligue1: 'https://site.api.espn.com/apis/site/v2/sports/soccer/fra.1/summary',
 }
 
+/** A team's [main, alternate] colors as CSS hex, from ESPN's "0b2265" form. */
+function teamColors(team) {
+  const hex = (c) => (/^[0-9a-f]{6}$/i.test(c || '') ? `#${c}` : null)
+  return [hex(team?.color), hex(team?.alternateColor)]
+}
+
 function formatDateParam(date) {
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -337,6 +343,8 @@ function transformEvent(event, sportKey) {
     possessionTeam: possessionTeam ? String(possessionTeam) : null,
     awayTeamId: away.team?.id ? String(away.team.id) : null,
     homeTeamId: home.team?.id ? String(home.team.id) : null,
+    awayColors: teamColors(away.team),
+    homeColors: teamColors(home.team),
     atBatTeam,
     situation,
     // MLB-specific fields

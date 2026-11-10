@@ -622,6 +622,35 @@ function ScoreCard({ game, onOpenSummary, onOpenTeam, isFavorite, onToggleFavori
   )
 }
 
+// Relative luminance (0 black – 1 white) of a "#rrggbb" color.
+function luminance(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => {
+    const c = parseInt(hex.slice(i, i + 2), 16) / 255
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+  })
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b
+}
+
+/**
+ * Team colors for a win-probability bar: each team's main color unless it
+ * would vanish against the card in light or dark mode (near-black, white…),
+ * then its alternate. If both teams land on near-identical colors, the home
+ * team switches to its alternate. `text` is the same idea with a stricter
+ * cut, since small text needs more contrast than a bar.
+ */
+function barColors(awayColors = [], homeColors = []) {
+  const between = (lo, hi) => (c) => c && luminance(c) > lo && luminance(c) < hi
+  const forBar = between(0.03, 0.85)
+  const forText = between(0.1, 0.7)
+  const pick = ([main, alt], ok, skip) => [main, alt].find((c) => ok(c) && c !== skip) || null
+  const rgb = (c) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16))
+  const close = (a, b) => Math.hypot(...rgb(a).map((v, i) => v - rgb(b)[i])) < 90
+  const away = pick(awayColors, forBar)
+  let home = pick(homeColors, forBar)
+  if (away && home && close(away, home)) home = pick(homeColors, forBar, home) || home
+  return { bar: [away, home], text: [pick(awayColors, forText), pick(homeColors, forText)] }
+}
+
 /**
  * Bottom line of a live card: down & distance for football (tagged in the
  * red zone) and ESPN's win probability for the team that's favored. Both
@@ -637,10 +666,14 @@ function LiveLine({ game }) {
   if (Number.isFinite(prob?.homeWinPercentage) && Number.isFinite(prob?.awayWinPercentage)) {
     const homeFavored = prob.homeWinPercentage >= prob.awayWinPercentage
     const p = homeFavored ? prob.homeWinPercentage : prob.awayWinPercentage
+    const { bar: [awayColor, homeColor], text: [awayText, homeText] } = barColors(game.awayColors, game.homeColors)
     win = {
       team: (homeFavored ? game.homeAbbreviation : game.awayAbbreviation) || (homeFavored ? game.homeShortName : game.awayShortName),
       text: p >= 0.995 ? '>99%' : `${Math.round(100 * p)}%`,
-      width: `${Math.round(100 * p)}%`,
+      color: homeFavored ? homeText : awayText,
+      awayWidth: `${Math.round(100 * prob.awayWinPercentage)}%`,
+      awayColor,
+      homeColor,
     }
   }
   if (!down && !win) return null
@@ -654,8 +687,11 @@ function LiveLine({ game }) {
       )}
       {win && (
         <span className="card-win-prob" title="ESPN win probability">
-          <span className="wp-label">{win.team} {win.text}</span>
-          <span className="wp-bar" aria-hidden="true"><span style={{ width: win.width }} /></span>
+          <span className="wp-label" style={win.color ? { color: win.color } : undefined}>{win.team} {win.text}</span>
+          <span className="wp-bar" aria-hidden="true">
+            <span style={{ width: win.awayWidth, background: win.awayColor || undefined }} />
+            <span style={{ background: win.homeColor || undefined }} />
+          </span>
         </span>
       )}
     </div>
