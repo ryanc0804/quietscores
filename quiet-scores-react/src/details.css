@@ -272,6 +272,17 @@ html, body { background: var(--bg-primary); color: var(--text-primary); }
     color: var(--text-secondary);
 }
 
+/* Scores page top: same stacked layout, less space around it, so the games
+   start higher. */
+.date-navigation { margin-bottom: 0; padding: 10px 10px 0; }
+.date-navigation .week-display { margin-bottom: 4px; }
+.date-navigation .week-buttons { margin-bottom: 0; }
+.list-toolbar { margin: 14px 0 -20px; }
+.scores-container { margin-top: 24px; }
+@media (max-width: 768px) {
+    .date-navigation { padding: 6px 10px 0; }
+}
+
 /* Team stats rows (sidebar + Team Stats tab) */
 .ts-teams {
     display: flex;

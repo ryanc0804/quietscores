@@ -170,9 +170,11 @@ function getSportDisplayName(sport) {
   }
 }
 
-function abbreviateNetwork(network) {
+function abbreviateNetwork(rawNetwork) {
+  // ESPN sometimes joins channels ("ALT2/KTVD"); show the first one.
+  const network = String(rawNetwork || '').split(/[/|,]/).map((s) => s.trim()).find(Boolean) || ''
   if (!network) return ''
-  
+
   const networkLower = network.toLowerCase()
   
   // Common network abbreviations
@@ -579,11 +581,18 @@ function PossessionIcon({ sport }) {
   )
 }
 
-function ScoreCard({ game, onOpenSummary, onOpenTeam, isFavorite, onToggleFavorite, highlight }) {
+function ScoreCard({ game, onOpenSummary, onOpenTeam, isFavorite, onToggleFavorite, highlight, showSport = true }) {
   const badge = getStatusBadge(game)
   const statusBadge = badge ? (
     <span className={badge.className}>{badge.text}</span>
   ) : null
+  // Header: league (only when the list mixes them), conference for college
+  // matchups within one, and the network.
+  const headerParts = [
+    showSport && getSportDisplayName(game.sport),
+    game.homeConference && game.homeConference === game.awayConference && game.homeConference,
+    game.broadcastChannel && abbreviateNetwork(game.broadcastChannel),
+  ].filter(Boolean)
 
   return (
     <div
@@ -601,11 +610,7 @@ function ScoreCard({ game, onOpenSummary, onOpenTeam, isFavorite, onToggleFavori
       aria-label={`${game.awayTeam} at ${game.homeTeam}`}
     >
       <div className="game-header">
-        <span className="sport-type">
-          {getSportDisplayName(game.sport)}
-          {game.homeConference && game.homeConference === game.awayConference ? ` • ${game.homeConference}` : ''}
-          {game.broadcastChannel ? ` • ${abbreviateNetwork(game.broadcastChannel)}` : ''}
-        </span>
+        <span className="sport-type">{headerParts.join(' • ')}</span>
         {statusBadge}
       </div>
       <div className="game-content">
@@ -853,7 +858,7 @@ function GameSummary({ game, onBack, onOpenTeam }) {
       setStandingsError(null)
 
       try {
-        const allStandings = await fetchStandings(game.sport)
+        const allStandings = await fetchStandings(game.sport, { divisions: true })
         
         if (!cancelled) {
           if (allStandings) {
@@ -2449,6 +2454,8 @@ function App() {
   const singleSport = selectedSport !== 'favorites' && !showLiveOnly
   const sportLabel = SPORT_BUTTONS.find((b) => b.value === selectedSport)?.label || selectedSport
 
+  // The sport bar already names the sport, so cards only say it when the
+  // list mixes leagues (Favorites, Soccer).
   const renderCard = (game, highlight = false) => (
     <ScoreCard
       key={`${game.sport}-${game.id ?? `${game.awayTeam}-${game.homeTeam}`}`}
@@ -2456,6 +2463,7 @@ function App() {
       onOpenSummary={handleOpenGameSummary}
       onOpenTeam={handleOpenTeamPage}
       highlight={highlight}
+      showSport={selectedSport === 'favorites' || selectedSport === 'soccer'}
     />
   )
 
