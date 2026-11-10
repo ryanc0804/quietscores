@@ -522,6 +522,7 @@ const nflDefense = (year) =>
 
 // Edge rushers are often listed as linebackers; one who pressures the QB
 // more often than he's thrown at in coverage counts as a pass rusher.
+// (Pressures still sort players into groups; they just aren't shown.)
 const isRusher = (p) => p.group === 'DL' || (p.group === 'LB' && p.prss >= p.tgt)
 // Who a defender is compared with: pass rushers (DL and edge LBs), off-ball
 // linebackers, or defensive backs.
@@ -547,10 +548,11 @@ const DEF_POOL = {
   tackleRate: (scope) => (p) => defScope(p) === scope && p.comb + p.mtkl >= MIN_TACKLE_TRIES[scope] * p.teamGames,
 }
 
+// No pressures or hurries: PFR charts them far more strictly than PFF or
+// NFL Next Gen Stats (whose numbers can't be republished), so its totals
+// read as wrong next to the ones fans know.
 const DEF_STATS = {
-  prss: { group: 'rush', pool: 'counting', label: 'Pressures', name: 'QB Pressures', desc: 'Sacks, QB hits and hurries combined: how often he got to the quarterback.', calc: (p) => p.prss, fmt: int },
   sk: { group: 'rush', pool: 'counting', label: 'Sacks', name: 'Sacks', desc: 'Sacks, as charted by Pro Football Reference.', calc: (p) => p.sk, fmt: (v) => (Number.isFinite(v) ? String(v) : '–') },
-  hrry: { group: 'rush', pool: 'counting', label: 'Hurries', name: 'QB Hurries', desc: 'Times he forced the QB to throw early or move off his spot without a hit or sack.', calc: (p) => p.hrry, fmt: int },
   qbhit: { group: 'rush', pool: 'counting', label: 'QB hits', name: 'QB Knockdowns', desc: 'Times he hit the quarterback as or just after he threw.', calc: (p) => p.qbhit, fmt: int },
   rating: { group: 'coverage', pool: 'coverage', label: 'Rating allowed', name: 'Passer Rating Allowed', desc: 'NFL passer rating on throws at the player he was covering; lower is better.', calc: ratingAllowed, fmt: fixed(1), asc: true },
   ydsTgt: { group: 'coverage', pool: 'coverage', label: 'Yds / target', name: 'Yards Allowed per Target', desc: 'Receiving yards allowed per throw at the player he was covering; lower is better.', calc: (p) => per(p.yds, p.tgt), fmt: fixed(1), asc: true },
@@ -563,7 +565,7 @@ const DEF_STATS = {
 }
 
 const DEF_LAYOUT = {
-  rusher: ['prss', 'sk', 'hrry', 'qbhit', 'comb', 'mtklPct'],
+  rusher: ['sk', 'qbhit', 'comb', 'mtklPct'],
   LB: ['comb', 'mtklPct', 'rating', 'ydsTgt', 'cmpPct', 'yacCmp'],
   DB: ['rating', 'ydsTgt', 'cmpPct', 'tdAllowed', 'ints', 'yacCmp', 'comb', 'mtklPct'],
 }
