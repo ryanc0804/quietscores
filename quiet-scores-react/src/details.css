@@ -272,6 +272,12 @@ html, body { background: var(--bg-primary); color: var(--text-primary); }
     color: var(--text-secondary);
 }
 
+/* Header: equal-width sides so the sport bar stays centred on the page,
+   whatever sits left (logo) or right (Standings, Leaders, Search, account). */
+@media (min-width: 481px) {
+    .site-header { grid-template-columns: minmax(max-content, 1fr) minmax(0, auto) minmax(max-content, 1fr); }
+}
+
 /* Scores page top: same stacked layout, less space around it, so the games
    start higher. */
 .date-navigation { margin-bottom: 0; padding: 10px 10px 0; }

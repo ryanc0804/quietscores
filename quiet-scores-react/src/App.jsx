@@ -2479,6 +2479,38 @@ function App() {
   const singleSport = selectedSport !== 'favorites' && !showLiveOnly
   const sportLabel = SPORT_BUTTONS.find((b) => b.value === selectedSport)?.label || selectedSport
 
+  // Header buttons for the selected league's Standings and Leaders. From any
+  // page they open that view over the list; pressing the active one again
+  // goes back to scores.
+  const openLeagueView = (view) => {
+    if (viewStack.length) closeAllViews()
+    setLeagueView(!viewStack.length && activeLeagueView === view ? 'scores' : view)
+    window.scrollTo(0, 0)
+  }
+  const leagueButtons = LEAGUE_SPORTS.has(selectedSport) ? (
+    <nav className="header-league" aria-label={`${SPORT_LABEL[selectedSport]} standings and leaders`}>
+      {[
+        ['standings', 'Standings', <path key="s" d="M4 20V10M10 20V4M16 20v-7M22 20H2" />],
+        ['leaders', 'Leaders', <path key="l" d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4zM7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4" />],
+      ].map(([view, label, icon]) => {
+        const active = !viewStack.length && activeLeagueView === view
+        return (
+          <button
+            key={view}
+            type="button"
+            className={`header-league-btn ${active ? 'active' : ''}`}
+            aria-pressed={active}
+            title={`${SPORT_LABEL[selectedSport]} ${label.toLowerCase()}`}
+            onClick={() => openLeagueView(view)}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{icon}</svg>
+            <span>{label}</span>
+          </button>
+        )
+      })}
+    </nav>
+  ) : null
+
   // The sport bar already names the sport, so cards only say it when the
   // list mixes leagues (Favorites, Soccer).
   const renderCard = (game, highlight = false) => (
@@ -2538,34 +2570,21 @@ function App() {
     <GameSummary key={`${activeGame.sport}-${activeGame.id}`} game={activeGame} onBack={handleBack} onOpenTeam={handleOpenTeamPage} />
   ) : (
     <>
-      {LEAGUE_SPORTS.has(selectedSport) && (
-        <div className="league-switch" role="tablist" aria-label={`${SPORT_LABEL[selectedSport]} view`}>
-          {[['scores', 'Scores'], ['standings', 'Standings'], ['leaders', 'Leaders']].map(([view, label]) => (
-            <button
-              key={view}
-              type="button"
-              role="tab"
-              aria-selected={activeLeagueView === view}
-              className={activeLeagueView === view ? 'active' : ''}
-              onClick={() => setLeagueView(view)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      )}
-      {activeLeagueView === 'standings' ? (
+      {activeLeagueView !== 'scores' ? (
         <div className="league-page">
+          <div className="league-head">
+            <h2>{SPORT_LABEL[selectedSport]} {activeLeagueView === 'standings' ? 'Standings' : 'Leaders'}</h2>
+          </div>
+          {activeLeagueView === 'standings' ? (
           <LeagueStandings
             sport={selectedSport}
             onOpenTeam={handleOpenTeamPage}
             conference={conferenceBySport[selectedSport]}
             onConference={setSelectedConference}
           />
-        </div>
-      ) : activeLeagueView === 'leaders' ? (
-        <div className="league-page">
+          ) : (
           <LeagueLeaders sport={selectedSport} onOpenPlayer={handleOpenPlayer} onOpenLeaderboard={handleOpenLeaderboard} />
+          )}
         </div>
       ) : (
       <>
@@ -2734,9 +2753,13 @@ function App() {
               </button>
             ))}
           </div>
+          {/* Phones: Standings/Leaders sit at the end of the sport bar row,
+              where the header row has no room for them. */}
+          {leagueButtons && <div className="header-league-mobile">{leagueButtons}</div>}
         </div>
 
         <div className="header-right">
+          {leagueButtons && <div className="header-league-desktop">{leagueButtons}</div>}
           <SearchButton
             onOpen={(rect) => {
               setSearchOrigin(rect)

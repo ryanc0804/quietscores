@@ -10,19 +10,21 @@
 }
 :root[data-theme="light"] { --pg-win: #17803a; --pg-loss: #c62f35; }
 
-/* ---------- Header search trigger ---------- */
+/* ---------- Header search trigger ----------
+   Same look as the Standings / Leaders buttons beside it: icon and label,
+   no box; labels (and the "/" hint) only where the header has room. */
 .search-trigger {
     height: 34px;
     min-width: 34px;
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     padding: 0 10px;
     border-radius: 9px;
-    border: 1px solid var(--border-primary);
+    border: 1px solid transparent;
     background: transparent;
     color: var(--text-secondary);
-    font-size: 0.8rem;
+    font-size: 0.82rem;
     font-weight: 600;
     cursor: pointer;
 }
@@ -30,10 +32,10 @@
 .search-trigger { transition: transform 120ms ease-out, background 150ms ease, color 150ms ease; }
 .search-trigger:active { transform: scale(0.95); }
 .search-trigger kbd {
-    font: inherit; font-size: 0.7rem; line-height: 1;
-    padding: 2px 6px; border-radius: 5px; border: 1px solid var(--border-secondary); color: var(--text-muted);
+    font: inherit; font-size: 0.68rem; line-height: 1;
+    padding: 2px 5px; border-radius: 5px; border: 1px solid var(--border-secondary); color: var(--text-muted);
 }
-@media (max-width: 760px) {
+@media (max-width: 1439px) {
     .search-trigger { padding: 0; justify-content: center; width: 34px; }
     .search-trigger-label, .search-trigger kbd { display: none; }
 }
@@ -475,28 +477,53 @@
 }
 
 /* ===== League views: Scores · Standings · Leaders ===== */
-/* A tab row under the sport bar, like the tabs on team and player pages. */
-.league-switch {
-    display: flex;
-    justify-content: center;
-    gap: 26px;
-    margin: 0 0 6px;
-    border-bottom: 1px solid var(--border-primary);
-}
-.league-switch button {
-    padding: 11px 2px 9px;
-    border: none;
-    border-bottom: 2px solid transparent;
-    background: none;
-    color: var(--text-muted);
+/* Header buttons for the league's Standings and Leaders (beside Search). */
+.header-league { display: inline-flex; gap: 6px; }
+.header-league-btn {
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 10px;
+    border-radius: 9px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-secondary);
     font: inherit;
-    font-size: 0.86rem;
+    font-size: 0.82rem;
     font-weight: 600;
     cursor: pointer;
-    transition: color 0.15s ease, border-color 0.15s ease;
+    transition: background 150ms ease, color 150ms ease;
 }
-.league-switch button:hover { color: var(--text-primary); }
-.league-switch button.active { color: var(--text-primary); font-weight: 700; border-bottom-color: var(--text-primary); }
+.header-league-btn:hover { color: var(--text-primary); background: rgba(var(--overlay), 0.06); }
+.header-league-btn.active { color: var(--text-primary); border-color: var(--border-primary); background: rgba(var(--overlay), 0.06); }
+@media (max-width: 1439px) {
+    .header-league-btn { width: 34px; padding: 0; justify-content: center; }
+    .header-league-btn span { display: none; }
+}
+.header-league-desktop { display: contents; }
+.header-league-mobile { display: none; }
+@media (max-width: 480px) {
+    .header-league-desktop { display: none; }
+    .header-center { display: flex; align-items: center; gap: 6px; }
+    .header-center .sport-filters { flex: 1 1 auto; min-width: 0; }
+    .header-league-mobile { display: flex; flex: 0 0 auto; }
+}
+
+.league-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+.league-head h2 {
+    margin: 0;
+    font-family: 'Barlow Condensed', 'Inter', sans-serif;
+    font-size: 1.7rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
 
 .league-page { max-width: 1180px; margin: 18px auto 48px; padding: 0 10px; text-align: left; }
 .league-status { padding: 48px 20px; text-align: center; color: var(--text-secondary); }
