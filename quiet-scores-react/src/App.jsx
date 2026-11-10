@@ -52,7 +52,6 @@ import { leaguePath, pathFor, routeFrom, titleFor } from './lib/routes'
 import { LEAGUE_SPORTS } from './lib/standings'
 import { LeagueStandings } from './pages/LeagueStandings'
 import { LeagueLeaders } from './pages/LeagueLeaders'
-import { StatsMenu } from './components/StatsMenu'
 import { SPORT_LABEL } from './lib/players'
 
 const SUMMARY_REFRESH_MS = 15_000
@@ -2480,20 +2479,36 @@ function App() {
   const singleSport = selectedSport !== 'favorites' && !showLiveOnly
   const sportLabel = SPORT_BUTTONS.find((b) => b.value === selectedSport)?.label || selectedSport
 
-  // Header "Stats" menu for the selected league's Standings and Leaders.
-  // From any page it opens that view over the list; picking the view that's
-  // already showing goes back to scores.
+  // Header buttons for the selected league's Standings and Leaders. From any
+  // page they open that view over the list; pressing the active one again
+  // goes back to scores.
   const openLeagueView = (view) => {
     if (viewStack.length) closeAllViews()
     setLeagueView(!viewStack.length && activeLeagueView === view ? 'scores' : view)
     window.scrollTo(0, 0)
   }
   const leagueButtons = LEAGUE_SPORTS.has(selectedSport) ? (
-    <StatsMenu
-      label={SPORT_BUTTONS.find((b) => b.value === selectedSport)?.label || SPORT_LABEL[selectedSport]}
-      active={!viewStack.length && activeLeagueView !== 'scores' ? activeLeagueView : null}
-      onOpen={openLeagueView}
-    />
+    <nav className="header-league" aria-label={`${SPORT_LABEL[selectedSport]} standings and leaders`}>
+      {[
+        ['standings', 'Standings', <path key="s" d="M4 20V10M10 20V4M16 20v-7M22 20H2" />],
+        ['leaders', 'Leaders', <path key="l" d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4zM7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4" />],
+      ].map(([view, label, icon]) => {
+        const active = !viewStack.length && activeLeagueView === view
+        return (
+          <button
+            key={view}
+            type="button"
+            className={`header-league-btn ${active ? 'active' : ''}`}
+            aria-pressed={active}
+            title={`${SPORT_LABEL[selectedSport]} ${label.toLowerCase()}`}
+            onClick={() => openLeagueView(view)}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{icon}</svg>
+            <span>{label}</span>
+          </button>
+        )
+      })}
+    </nav>
   ) : null
 
   // The sport bar already names the sport, so cards only say it when the

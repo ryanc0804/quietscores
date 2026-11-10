@@ -272,10 +272,12 @@ html, body { background: var(--bg-primary); color: var(--text-primary); }
     color: var(--text-secondary);
 }
 
-/* Header: equal-width sides so the sport bar stays centred on the page,
-   whatever sits left (logo) or right (Standings, Leaders, Search, account). */
+/* Header: logo, then the sport bar right after it, then Standings,
+   Leaders, Search and the account pushed right (nothing centred, so the
+   bar never drifts as the right side changes). */
 @media (min-width: 481px) {
-    .site-header { grid-template-columns: minmax(max-content, 1fr) minmax(0, auto) minmax(max-content, 1fr); }
+    .site-header { grid-template-columns: auto minmax(0, 1fr) auto; column-gap: 20px; }
+    .header-center { justify-content: flex-start; }
 }
 
 /* Scores page top: same stacked layout, less space around it, so the games
