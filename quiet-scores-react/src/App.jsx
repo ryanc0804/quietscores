@@ -619,7 +619,6 @@ function ScoreCard({ game, onOpenSummary, onOpenTeam, isFavorite, onToggleFavori
         )}
       </div>
       <LiveLine game={game} />
-      <WinProbEdge game={game} />
     </div>
   )
 }
@@ -650,36 +649,52 @@ function barColors(awayColors = [], homeColors = []) {
   return [away, home]
 }
 
-/** Down & distance under a live football card, tagged in the red zone. */
+/**
+ * Bottom row of a live card: down & distance for football (tagged in the
+ * red zone) on the left, ESPN's win probability on the right: the favored
+ * team's share and a small bar split in the two teams' colors (away left,
+ * home right). All from the scoreboard (game.situation), no extra requests.
+ */
 function LiveLine({ game }) {
-  const football = game.sport === 'nfl' || game.sport === 'college-football'
+  if (game.status !== 'live' && game.status !== 'halftime') return null
   const s = game.situation || {}
-  if (!football || game.status !== 'live' || !s.downDistanceText) return null
+  const football = game.sport === 'nfl' || game.sport === 'college-football'
+  const down = football && game.status === 'live' ? s.downDistanceText || null : null
+  const prob = s.lastPlay?.probability
+  const hasProb = Number.isFinite(prob?.homeWinPercentage) && Number.isFinite(prob?.awayWinPercentage)
+  if (!down && !hasProb) return null
+
+  let win = null
+  if (hasProb) {
+    const [awayColor, homeColor] = barColors(game.awayColors, game.homeColors)
+    const pct = (p) => (p >= 0.995 ? '>99%' : p <= 0.005 ? '<1%' : `${Math.round(100 * p)}%`)
+    const name = (side) => game[`${side}Abbreviation`] || game[`${side}ShortName`]
+    const fav = prob.homeWinPercentage >= prob.awayWinPercentage ? 'home' : 'away'
+    win = {
+      text: `${name(fav)} ${pct(prob[`${fav}WinPercentage`])}`,
+      label: `Win probability: ${name('away')} ${pct(prob.awayWinPercentage)}, ${name('home')} ${pct(prob.homeWinPercentage)}`,
+      awayWidth: `${100 * prob.awayWinPercentage}%`,
+      awayColor,
+      homeColor,
+    }
+  }
   return (
     <div className="card-live-line">
-      {s.isRedZone && <span className="red-zone-tag">Red zone</span>}
-      <span className="card-down">{s.downDistanceText}</span>
-    </div>
-  )
-}
-
-/**
- * ESPN's win probability as the card's bottom edge: a thin strip in the two
- * teams' colors, away share on the left, home on the right. The numbers are
- * in the tooltip. Comes with the scoreboard (game.situation), no extra request.
- */
-function WinProbEdge({ game }) {
-  if (game.status !== 'live' && game.status !== 'halftime') return null
-  const prob = game.situation?.lastPlay?.probability
-  if (!Number.isFinite(prob?.homeWinPercentage) || !Number.isFinite(prob?.awayWinPercentage)) return null
-  const [awayColor, homeColor] = barColors(game.awayColors, game.homeColors)
-  const pct = (p) => (p >= 0.995 ? '>99%' : p <= 0.005 ? '<1%' : `${Math.round(100 * p)}%`)
-  const name = (side) => game[`${side}Abbreviation`] || game[`${side}ShortName`]
-  const label = `Win probability: ${name('away')} ${pct(prob.awayWinPercentage)}, ${name('home')} ${pct(prob.homeWinPercentage)}`
-  return (
-    <div className="win-prob-edge" role="img" aria-label={label} title={label}>
-      <span style={{ width: `${100 * prob.awayWinPercentage}%`, background: awayColor || undefined }} />
-      <span style={{ background: homeColor || undefined }} />
+      {down && (
+        <span className="card-down">
+          {s.isRedZone && <span className="red-zone-tag">Red zone</span>}
+          {down}
+        </span>
+      )}
+      {win && (
+        <span className="card-win-prob" role="img" aria-label={win.label} title={win.label}>
+          <span className="wp-text">{win.text}</span>
+          <span className="wp-bar">
+            <span style={{ width: win.awayWidth, background: win.awayColor || undefined }} />
+            <span style={{ background: win.homeColor || undefined }} />
+          </span>
+        </span>
+      )}
     </div>
   )
 }
