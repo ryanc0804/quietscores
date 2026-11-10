@@ -48,7 +48,11 @@ const STAT_HELP = {
   earlyPassRate: 'Share of 1st and 2nd down plays that were passes.',
 }
 import { fetchGameSummary, fetchStandings, filterStandingsByTeams, fetchUFCFightStats } from './lib/espnApi'
-import { pathFor, routeFrom, titleFor } from './lib/routes'
+import { leaguePath, pathFor, routeFrom, titleFor } from './lib/routes'
+import { LEAGUE_SPORTS } from './lib/standings'
+import { LeagueStandings } from './pages/LeagueStandings'
+import { LeagueLeaders } from './pages/LeagueLeaders'
+import { SPORT_LABEL } from './lib/players'
 
 const SUMMARY_REFRESH_MS = 15_000
 
@@ -2102,13 +2106,17 @@ function App() {
   const [currentDate, setCurrentDate] = useState(() => new Date(INITIAL_GAME_DATE || today))
   // The sport the visitor picked; null until they pick one (or the first
   // scores load picks the top sport in the bar for them).
-  const [sportPick, setSportPick] = useState(null)
+  const [sportPick, setSportPick] = useState(() => (INITIAL_ROUTE?.type === 'league' ? INITIAL_ROUTE.sport : null))
+  // Scores, or the league's Standings / Leaders (for the sports that have them).
+  const [leagueView, setLeagueView] = useState(() => (INITIAL_ROUTE?.type === 'league' ? INITIAL_ROUTE.view : 'scores'))
   // Navigation: a stack of detail views over the scores list, mirrored in
   // browser history (and the URL, see lib/routes) so the phone/browser back
   // button walks back through it.
   // Each entry is { type: 'game' | 'team' | 'player' | 'leaders', value }.
   const [viewStack, setViewStack] = useState(() =>
-    INITIAL_ROUTE && INITIAL_ROUTE.type !== 'game' ? [{ type: INITIAL_ROUTE.type, value: INITIAL_ROUTE.value }] : [],
+    INITIAL_ROUTE && INITIAL_ROUTE.type !== 'game' && INITIAL_ROUTE.type !== 'league'
+      ? [{ type: INITIAL_ROUTE.type, value: INITIAL_ROUTE.value }]
+      : [],
   )
   // A shared game link waits here until its day's scoreboard has loaded.
   const [pendingGame, setPendingGame] = useState(() => (INITIAL_ROUTE?.type === 'game' ? INITIAL_ROUTE : null))
@@ -2178,7 +2186,7 @@ function App() {
   // so Back goes to the list rather than off the site. (Once, even under
   // StrictMode's double effects.)
   useEffect(() => {
-    if (!INITIAL_ROUTE || historySeeded) return
+    if (!INITIAL_ROUTE || INITIAL_ROUTE.type === 'league' || historySeeded) return
     historySeeded = true
     const url = window.location.pathname + window.location.search
     try {
@@ -2187,10 +2195,26 @@ function App() {
     } catch { /* ignore */ }
   }, [])
 
+  // Standings and Leaders exist for the main leagues; elsewhere it's scores.
+  const activeLeagueView = LEAGUE_SPORTS.has(selectedSport) ? leagueView : 'scores'
+
   // Browser tab title follows the page (player/team pages refine it once loaded).
   useEffect(() => {
-    document.title = titleFor(topView)
-  }, [topView])
+    document.title =
+      !topView && activeLeagueView !== 'scores'
+        ? `${SPORT_LABEL[selectedSport]} ${activeLeagueView === 'standings' ? 'Standings' : 'Leaders'} | Scores n Stats`
+        : titleFor(topView)
+  }, [topView, activeLeagueView, selectedSport])
+
+  // On the list, the URL names the view: / for scores, /nfl/standings,
+  // /nba/leaders. (Not while a shared game link is still resolving.)
+  useEffect(() => {
+    if (topView || pendingGame) return
+    const url = leaguePath(selectedSport, activeLeagueView)
+    if (window.location.pathname + window.location.search !== url) {
+      try { window.history.replaceState(window.history.state, '', url) } catch { /* ignore */ }
+    }
+  }, [topView, pendingGame, selectedSport, activeLeagueView])
 
   // Browser/phone back button pops detail views.
   useEffect(() => {
@@ -2369,6 +2393,7 @@ function App() {
 
   const handleBackToScores = () => {
     closeAllViews()
+    setLeagueView('scores')
     setSportPick(null) // back to the top sport in the bar
     setShowLiveOnly(false)
     setWeekOffset(0)
@@ -2513,6 +2538,32 @@ function App() {
     <GameSummary key={`${activeGame.sport}-${activeGame.id}`} game={activeGame} onBack={handleBack} onOpenTeam={handleOpenTeamPage} />
   ) : (
     <>
+      {LEAGUE_SPORTS.has(selectedSport) && (
+        <div className="league-switch" role="tablist" aria-label={`${SPORT_LABEL[selectedSport]} view`}>
+          {[['scores', 'Scores'], ['standings', 'Standings'], ['leaders', 'Leaders']].map(([view, label]) => (
+            <button
+              key={view}
+              type="button"
+              role="tab"
+              aria-selected={activeLeagueView === view}
+              className={activeLeagueView === view ? 'active' : ''}
+              onClick={() => setLeagueView(view)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+      {activeLeagueView === 'standings' ? (
+        <div className="league-page">
+          <LeagueStandings sport={selectedSport} onOpenTeam={handleOpenTeamPage} />
+        </div>
+      ) : activeLeagueView === 'leaders' ? (
+        <div className="league-page">
+          <LeagueLeaders sport={selectedSport} onOpenPlayer={handleOpenPlayer} onOpenLeaderboard={handleOpenLeaderboard} />
+        </div>
+      ) : (
+      <>
       <div className="date-navigation">
         <div className="week-display">
           <div className="week-label" id="weekLabel">
@@ -2636,6 +2687,8 @@ function App() {
           </>
         )}
       </div>
+      </>
+      )}
     </>
   )
 
