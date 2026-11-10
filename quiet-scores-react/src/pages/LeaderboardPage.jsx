@@ -80,7 +80,11 @@ export function LeaderboardPage({ view, onBack, onOpenPlayer, onChangeBoard }) {
             Back
           </button>
           <div className="lb-topline">
-            <span className="lb-eyebrow">{[SPORT_LABEL[board.sport], board.year && `${seasonName(board)} regular season`, 'League leaders'].filter(Boolean).join(' · ')}</span>
+            <span className="lb-eyebrow">
+              {[SPORT_LABEL[board.sport], board.year && `${seasonName(board)} regular season`, board.scopeLabel ? `Among ${board.scopeLabel}` : 'League leaders']
+                .filter(Boolean)
+                .join(' · ')}
+            </span>
           </div>
           <h1 className="lb-title">{board.label}</h1>
           {board.description && <p className="lb-desc">{board.description}</p>}
@@ -149,7 +153,7 @@ export function LeaderboardPage({ view, onBack, onOpenPlayer, onChangeBoard }) {
               {player.headshot ? <img className="lb-headshot" src={player.headshot} alt="" /> : <span className="lb-headshot" aria-hidden="true" />}
               <span className="lb-name">
                 <b>{player.name}</b>
-                <small>{tile?.rank ? `${tile.rank} in league` : tile?.reason || `Outside the top ${data.rows.length}`}</small>
+                <small>{tile?.rank ? `${tile.rank} ${board.scopeLabel ? `among ${board.scopeLabel}` : 'in league'}` : tile?.reason || `Outside the top ${data.rows.length}`}</small>
               </span>
               <span className="lb-value">{tile?.value ?? ''}</span>
             </div>

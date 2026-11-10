@@ -1,3 +1,4 @@
+import { statSync } from 'node:fs'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -10,7 +11,9 @@ function vercelApi() {
     configureServer(server) {
       server.middlewares.use('/api/nflverse', async (req, res) => {
         // The function lives in the repo-root api/ (the Vercel project root).
-        const { default: handler } = await import(new URL('../api/nflverse.mjs', import.meta.url).href)
+        // Re-imported when the file changes, so edits apply without a restart.
+        const file = new URL('../api/nflverse.mjs', import.meta.url)
+        const { default: handler } = await import(`${file.href}?v=${statSync(file).mtimeMs}`)
         req.query = Object.fromEntries(new URL(req.originalUrl || req.url, 'http://localhost').searchParams)
         await handler(req, res)
       })

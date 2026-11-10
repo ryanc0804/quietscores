@@ -4,6 +4,8 @@
 //          (expected stats and Statcast batted-ball data)
 //   NFL  – ESPN: per-player core stats, plus the byathlete lists, from which
 //          rate stats (catch %, ANY/A, …) are computed for every player.
+//          nflverse (via /api/nflverse) for EPA, CPOE and other offense, and
+//          Pro Football Reference's charting for defenders.
 // A stat's leaderboard is the same list its rank comes from, so they agree.
 import { formatRank, leaderboardFor } from './leaders'
 
@@ -62,11 +64,14 @@ function rankText(list, match) {
  * Percentile (0–100) within a ranked list, Savant-style: the share of the
  * group this player ranks ahead of. 1st of 135 → 100, last → 0. Lists are
  * already ordered best-first, so lower-is-better stats need no flipping.
+ * Players tied with him don't count as beaten (0 INTs, tied with half the
+ * league, is not the 50th percentile).
  */
 function percentileOf(list, match) {
   const me = list.find(match)
   if (!me || list.length < 2) return null
-  return Math.round((100 * (list.length - me.rank)) / (list.length - 1))
+  const tiedOrAhead = list.filter((r) => r.rank <= me.rank).length
+  return Math.round((100 * (list.length - tiedOrAhead)) / (list.length - 1))
 }
 
 /* ------------------------------------------------------------------ MLB */
@@ -500,6 +505,109 @@ async function nflverseAdvanced(player, year) {
   return tiles.length ? { tiles, source: role === 'QB' ? 'nflverse · ESPN QBR' : 'nflverse', updated } : null
 }
 
+/* -------------------------------------------- NFL defense (PFR charting) */
+
+// Pro Football Reference's charted defense stats, summed from nflverse's
+// weekly files by /api/nflverse?set=defense. Defenders are compared with
+// their own kind: pass-rush stats among pass rushers, coverage and tackling
+// stats within the position group (DL / LB / DB).
+const nflDefense = (year) =>
+  cached(`nfldef:${year}`, async () => {
+    const d = await getJson(`/api/nflverse?set=defense&season=${year}`)
+    if (!Array.isArray(d.players)) throw new Error('No defense data')
+    const teamGames = new Map()
+    for (const p of d.players) teamGames.set(p.team, Math.min(17, Math.max(teamGames.get(p.team) || 0, p.games || 0)))
+    return { throughWeek: d.throughWeek, players: d.players.map((p) => ({ ...p, teamGames: teamGames.get(p.team) || p.games || 1 })) }
+  })
+
+// Edge rushers are often listed as linebackers; one who pressures the QB
+// more often than he's thrown at in coverage counts as a pass rusher.
+const isRusher = (p) => p.group === 'DL' || (p.group === 'LB' && p.prss >= p.tgt)
+// Who a defender is compared with: pass rushers (DL and edge LBs), off-ball
+// linebackers, or defensive backs.
+const defScope = (p) => (isRusher(p) ? 'rush' : p.group)
+const DEF_SCOPE = { rush: 'pass rushers', LB: 'off-ball linebackers', DB: 'defensive backs' }
+// Coverage and tackling rates need this much volume per team game to rank.
+const MIN_TARGETS = { LB: 1.5, DB: 2 }
+const MIN_TACKLE_TRIES = { rush: 1.5, LB: 3, DB: 2 }
+
+/** NFL passer rating, on the throws a defender was targeted on. */
+function ratingAllowed(p) {
+  if (!p.tgt) return NaN
+  const part = (x) => Math.max(0, Math.min(2.375, x))
+  const sum =
+    part((p.cmp / p.tgt - 0.3) * 5) + part((p.yds / p.tgt - 3) * 0.25) + part((p.td / p.tgt) * 20) + part(2.375 - (p.int / p.tgt) * 25)
+  return (sum / 6) * 100
+}
+
+const playedHalf = (p) => p.games >= p.teamGames / 2
+const DEF_POOL = {
+  counting: (scope) => (p) => defScope(p) === scope && playedHalf(p),
+  coverage: (scope) => (p) => defScope(p) === scope && p.tgt >= MIN_TARGETS[scope] * p.teamGames,
+  tackleRate: (scope) => (p) => defScope(p) === scope && p.comb + p.mtkl >= MIN_TACKLE_TRIES[scope] * p.teamGames,
+}
+
+const DEF_STATS = {
+  prss: { group: 'rush', pool: 'counting', label: 'Pressures', name: 'QB Pressures', desc: 'Sacks, QB hits and hurries combined: how often he got to the quarterback.', calc: (p) => p.prss, fmt: int },
+  sk: { group: 'rush', pool: 'counting', label: 'Sacks', name: 'Sacks', desc: 'Sacks, as charted by Pro Football Reference.', calc: (p) => p.sk, fmt: (v) => (Number.isFinite(v) ? String(v) : '–') },
+  hrry: { group: 'rush', pool: 'counting', label: 'Hurries', name: 'QB Hurries', desc: 'Times he forced the QB to throw early or move off his spot without a hit or sack.', calc: (p) => p.hrry, fmt: int },
+  qbhit: { group: 'rush', pool: 'counting', label: 'QB hits', name: 'QB Knockdowns', desc: 'Times he hit the quarterback as or just after he threw.', calc: (p) => p.qbhit, fmt: int },
+  rating: { group: 'coverage', pool: 'coverage', label: 'Rating allowed', name: 'Passer Rating Allowed', desc: 'NFL passer rating on throws at the player he was covering; lower is better.', calc: ratingAllowed, fmt: fixed(1), asc: true },
+  ydsTgt: { group: 'coverage', pool: 'coverage', label: 'Yds / target', name: 'Yards Allowed per Target', desc: 'Receiving yards allowed per throw at the player he was covering; lower is better.', calc: (p) => per(p.yds, p.tgt), fmt: fixed(1), asc: true },
+  cmpPct: { group: 'coverage', pool: 'coverage', label: 'Comp % allowed', name: 'Completion % Allowed', desc: 'Share of throws at the player he was covering that were caught; lower is better.', calc: (p) => 100 * per(p.cmp, p.tgt), fmt: pct1, asc: true },
+  yacCmp: { group: 'coverage', pool: 'coverage', label: 'YAC / catch', name: 'Yards After Catch Allowed', desc: 'Yards after the catch allowed per completion; lower is better.', calc: (p) => per(p.yac, p.cmp), fmt: fixed(1), asc: true },
+  tdAllowed: { group: 'coverage', pool: 'coverage', label: 'TDs allowed', name: 'Touchdowns Allowed', desc: 'Touchdown catches by the player he was covering; fewer is better.', calc: (p) => p.td, fmt: int, asc: true },
+  ints: { group: 'coverage', pool: 'coverage', label: 'INTs', name: 'Interceptions', desc: 'Interceptions.', calc: (p) => p.int, fmt: int },
+  comb: { group: 'tackling', pool: 'counting', label: 'Tackles', name: 'Combined Tackles', desc: 'Solo and assisted tackles.', calc: (p) => p.comb, fmt: int },
+  mtklPct: { group: 'tackling', pool: 'tackleRate', label: 'Missed tkl %', name: 'Missed Tackle Rate', desc: 'Missed tackles as a share of tackle attempts; lower is better.', calc: (p) => 100 * per(p.mtkl, p.comb + p.mtkl), fmt: pct1, asc: true },
+}
+
+const DEF_LAYOUT = {
+  rusher: ['prss', 'sk', 'hrry', 'qbhit', 'comb', 'mtklPct'],
+  LB: ['comb', 'mtklPct', 'rating', 'ydsTgt', 'cmpPct', 'yacCmp'],
+  DB: ['rating', 'ydsTgt', 'cmpPct', 'tdAllowed', 'ints', 'yacCmp', 'comb', 'mtklPct'],
+}
+
+async function nflDefenseRows(board) {
+  const def = DEF_STATS[board.stat]
+  const { players } = await nflDefense(board.year)
+  const rows = players.filter(DEF_POOL[def.pool](board.scope)).map((p) => ({
+    athleteId: p.espnId,
+    name: p.name,
+    team: p.team,
+    position: p.position,
+    headshot: p.headshot,
+    raw: def.calc(p),
+  }))
+  return ranked(rows, def.asc).map((r) => ({ ...r, value: def.fmt(r.raw) }))
+}
+
+const defBoard = (key, def, scope, year) => ({
+  sport: 'nfl', kind: 'nfl-def', group: def.group, scope, scopeLabel: DEF_SCOPE[scope], stat: key,
+  label: def.name, abbreviation: def.label, description: def.desc, year,
+})
+
+async function nflDefenseAdvanced(player, year) {
+  const { throughWeek, players } = await nflDefense(year)
+  const me = players.find((p) => p.espnId === String(player.id))
+  if (!me) return null
+  const scope = defScope(me)
+  const layout = scope === 'rush' ? DEF_LAYOUT.rusher : DEF_LAYOUT[scope] || DEF_LAYOUT.DB
+  const mine = (r) => r.athleteId === String(player.id)
+  const tiles = []
+  for (const key of layout) {
+    const def = DEF_STATS[key]
+    const raw = def.calc(me)
+    if (!Number.isFinite(raw)) continue
+    const board = defBoard(key, def, scope, year)
+    const list = await nflDefenseRows(board)
+    const rank = rankText(list, mine)
+    tiles.push({ key, label: def.label, value: def.fmt(raw), desc: def.desc, board, scope: DEF_SCOPE[scope], rank, percentile: percentileOf(list, mine), reason: rank ? null : 'Not qualified' })
+  }
+  const source = `Pro Football Reference (nflverse)${throughWeek ? ` · through Week ${throughWeek}` : ''}`
+  return tiles.length ? { tiles, source } : null
+}
+
 /* -------------------------------------------------------------- public */
 
 /** { tiles: [{ key, label, value, desc?, board? }], source, updated?, mlbId? } or null. */
@@ -507,10 +615,11 @@ export async function fetchAdvanced(player, year) {
   if (player.sport === 'mlb') return mlbAdvanced(player, year)
   if (player.sport === 'nfl') {
     // Real advanced stats from nflverse; ESPN-only tiles if nflverse is
-    // unavailable or doesn't have the player. Defenders get no section:
-    // nflverse has no advanced defensive stats.
+    // unavailable or doesn't have the player. Defenders get PFR's charting,
+    // or no section if it's unavailable.
     const role = nflRole(player.positionAbbr)
-    if (!role || role === 'defense') return null
+    if (!role) return null
+    if (role === 'defense') return nflDefenseAdvanced(player, year).catch(() => null)
     return (await nflverseAdvanced(player, year).catch(() => null)) || nflAdvanced(player, year)
   }
   return null
@@ -522,7 +631,8 @@ export async function fetchAdvancedLeaderboard(board, { limit = 50 } = {}) {
     board.kind === 'mlb' ? await mlbBoardRows(board)
       : board.kind === 'nflverse' ? await nflverseRows(board)
         : board.kind === 'qbr' ? await qbrRows(board)
-          : await nflDerivedRows(board)
+          : board.kind === 'nfl-def' ? await nflDefenseRows(board)
+            : await nflDerivedRows(board)
   return { rows: all.slice(0, limit), total: all.length, qualified: true, all }
 }
 
@@ -532,9 +642,10 @@ export function advancedSiblings(board) {
   if (board.kind === 'mlb') return MLB_STATS[board.group].map((d) => as(d.key, d))
   if (board.kind === 'nflverse') return Object.entries(NFLV_STATS).filter(([, d]) => d.group === board.group).map(([k, d]) => as(k, d))
   if (board.kind === 'qbr') return Object.entries(QBR_STATS).map(([k, d]) => as(k, d))
+  if (board.kind === 'nfl-def') return Object.entries(DEF_STATS).filter(([, d]) => d.group === board.group).map(([k, d]) => as(k, d))
   return Object.entries(NFL_DERIVED)
     .filter(([, d]) => d.cat === board.group)
     .map(([k, d]) => as(k, d))
 }
 
-export const isAdvancedBoard = (b) => ['mlb', 'nfl-derived', 'nflverse', 'qbr'].includes(b?.kind)
+export const isAdvancedBoard = (b) => ['mlb', 'nfl-derived', 'nflverse', 'qbr', 'nfl-def'].includes(b?.kind)
