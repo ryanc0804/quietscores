@@ -4,6 +4,7 @@ import { parseSchedule } from '../lib/schedule'
 import { SPORT_LABEL } from '../lib/players'
 import { heroColors } from './heroColor'
 import { SummarySkeleton } from '../components/Skeletons'
+import { nameLoaded } from '../lib/routes'
 
 const TABS = [
   { id: 'overview', label: 'Overview' },
@@ -130,6 +131,9 @@ export function TeamPage({ team, onBack, isFavorite, onToggleFavorite, onOpenPla
   const rosterGroups = useMemo(() => rosterGroupsFrom(data?.roster), [data])
 
   const name = t?.displayName || team.teamName
+  useEffect(() => {
+    if (t?.displayName) nameLoaded({ type: 'team', value: { sport: team.sport, teamId: team.teamId, teamName: t.displayName } })
+  }, [t?.displayName, team.sport, team.teamId])
   const logo = t?.logos?.[0]?.href || team.teamLogo
   const colors = heroColors(t?.color ? `#${t.color}` : null, t?.alternateColor ? `#${t.alternateColor}` : null)
   const records = t?.record?.items || []

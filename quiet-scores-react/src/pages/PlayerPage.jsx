@@ -7,6 +7,7 @@ import { fetchAdvanced } from '../lib/advanced'
 import { fetchCareer } from '../lib/career'
 import { PlayerLastGame } from '../components/PlayerLastGame'
 import { PercentileTrack } from '../components/PercentileBars'
+import { nameLoaded } from '../lib/routes'
 
 function Headshot({ src, name }) {
   const [failed, setFailed] = useState(false)
@@ -97,6 +98,10 @@ export function PlayerPage({ player: ref, onBack, onOpenTeam, onOpenLeaderboard 
       })
     return () => controller.abort()
   }, [ref.sport, ref.athleteId])
+
+  useEffect(() => {
+    if (player?.name) nameLoaded({ type: 'player', value: { sport: ref.sport, athleteId: ref.athleteId, name: player.name } })
+  }, [player?.name, ref.sport, ref.athleteId])
 
   // Work out which tiles can open a league leaderboard (not every sport or stat has one).
   useEffect(() => {

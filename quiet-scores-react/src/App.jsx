@@ -37,6 +37,7 @@ import {
   isFootball,
 } from './lib/gameDetails'
 import { fetchGameSummary, fetchStandings, filterStandingsByTeams, fetchUFCFightStats } from './lib/espnApi'
+import { pathFor, routeFrom, titleFor } from './lib/routes'
 
 const SUMMARY_REFRESH_MS = 15_000
 
@@ -618,6 +619,7 @@ function ScoreCard({ game, onOpenSummary, onOpenTeam, isFavorite, onToggleFavori
         )}
       </div>
       <LiveLine game={game} />
+      <WinProbEdge game={game} />
     </div>
   )
 }
@@ -632,68 +634,52 @@ function luminance(hex) {
 }
 
 /**
- * Team colors for a win-probability bar: each team's main color unless it
- * would vanish against the card in light or dark mode (near-black, white…),
- * then its alternate. If both teams land on near-identical colors, the home
- * team switches to its alternate. `text` is the same idea with a stricter
- * cut, since small text needs more contrast than a bar.
+ * Team colors for the win-probability edge: each team's main color unless
+ * it would vanish against the card in light or dark mode (near-black,
+ * white…), then its alternate. If both teams land on near-identical colors,
+ * the home team switches to its alternate.
  */
 function barColors(awayColors = [], homeColors = []) {
-  const between = (lo, hi) => (c) => c && luminance(c) > lo && luminance(c) < hi
-  const forBar = between(0.03, 0.85)
-  const forText = between(0.1, 0.7)
-  const pick = ([main, alt], ok, skip) => [main, alt].find((c) => ok(c) && c !== skip) || null
+  const visible = (c) => c && luminance(c) > 0.03 && luminance(c) < 0.85
+  const pick = ([main, alt], skip) => [main, alt].find((c) => visible(c) && c !== skip) || null
   const rgb = (c) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16))
   const close = (a, b) => Math.hypot(...rgb(a).map((v, i) => v - rgb(b)[i])) < 90
-  const away = pick(awayColors, forBar)
-  let home = pick(homeColors, forBar)
-  if (away && home && close(away, home)) home = pick(homeColors, forBar, home) || home
-  return { bar: [away, home], text: [pick(awayColors, forText), pick(homeColors, forText)] }
+  const away = pick(awayColors)
+  let home = pick(homeColors)
+  if (away && home && close(away, home)) home = pick(homeColors, home) || home
+  return [away, home]
+}
+
+/** Down & distance under a live football card, tagged in the red zone. */
+function LiveLine({ game }) {
+  const football = game.sport === 'nfl' || game.sport === 'college-football'
+  const s = game.situation || {}
+  if (!football || game.status !== 'live' || !s.downDistanceText) return null
+  return (
+    <div className="card-live-line">
+      {s.isRedZone && <span className="red-zone-tag">Red zone</span>}
+      <span className="card-down">{s.downDistanceText}</span>
+    </div>
+  )
 }
 
 /**
- * Bottom line of a live card: down & distance for football (tagged in the
- * red zone) and ESPN's win probability for the team that's favored. Both
- * come with the scoreboard (game.situation), so no extra requests.
+ * ESPN's win probability as the card's bottom edge: a thin strip in the two
+ * teams' colors, away share on the left, home on the right. The numbers are
+ * in the tooltip. Comes with the scoreboard (game.situation), no extra request.
  */
-function LiveLine({ game }) {
+function WinProbEdge({ game }) {
   if (game.status !== 'live' && game.status !== 'halftime') return null
-  const s = game.situation || {}
-  const football = game.sport === 'nfl' || game.sport === 'college-football'
-  const down = football && game.status === 'live' ? s.downDistanceText || null : null
-  const prob = s.lastPlay?.probability
-  let win = null
-  if (Number.isFinite(prob?.homeWinPercentage) && Number.isFinite(prob?.awayWinPercentage)) {
-    const homeFavored = prob.homeWinPercentage >= prob.awayWinPercentage
-    const p = homeFavored ? prob.homeWinPercentage : prob.awayWinPercentage
-    const { bar: [awayColor, homeColor], text: [awayText, homeText] } = barColors(game.awayColors, game.homeColors)
-    win = {
-      team: (homeFavored ? game.homeAbbreviation : game.awayAbbreviation) || (homeFavored ? game.homeShortName : game.awayShortName),
-      text: p >= 0.995 ? '>99%' : `${Math.round(100 * p)}%`,
-      color: homeFavored ? homeText : awayText,
-      awayWidth: `${Math.round(100 * prob.awayWinPercentage)}%`,
-      awayColor,
-      homeColor,
-    }
-  }
-  if (!down && !win) return null
+  const prob = game.situation?.lastPlay?.probability
+  if (!Number.isFinite(prob?.homeWinPercentage) || !Number.isFinite(prob?.awayWinPercentage)) return null
+  const [awayColor, homeColor] = barColors(game.awayColors, game.homeColors)
+  const pct = (p) => (p >= 0.995 ? '>99%' : p <= 0.005 ? '<1%' : `${Math.round(100 * p)}%`)
+  const name = (side) => game[`${side}Abbreviation`] || game[`${side}ShortName`]
+  const label = `Win probability: ${name('away')} ${pct(prob.awayWinPercentage)}, ${name('home')} ${pct(prob.homeWinPercentage)}`
   return (
-    <div className="card-live-line">
-      {down && (
-        <span className="card-down">
-          {s.isRedZone && <span className="red-zone-tag">Red zone</span>}
-          {down}
-        </span>
-      )}
-      {win && (
-        <span className="card-win-prob" title="ESPN win probability">
-          <span className="wp-label" style={win.color ? { color: win.color } : undefined}>{win.team} {win.text}</span>
-          <span className="wp-bar" aria-hidden="true">
-            <span style={{ width: win.awayWidth, background: win.awayColor || undefined }} />
-            <span style={{ background: win.homeColor || undefined }} />
-          </span>
-        </span>
-      )}
+    <div className="win-prob-edge" role="img" aria-label={label} title={label}>
+      <span style={{ width: `${100 * prob.awayWinPercentage}%`, background: awayColor || undefined }} />
+      <span style={{ background: homeColor || undefined }} />
     </div>
   )
 }
@@ -2088,21 +2074,37 @@ function GameSummary({ game, onBack, onOpenTeam }) {
   )
 }
 
+// The page the site was opened at (a shared /nfl/player/… link, say), read
+// once. Games open on their own date, once that day's scores have loaded.
+const INITIAL_ROUTE = typeof window === 'undefined' ? null : routeFrom(window.location)
+const INITIAL_GAME_DATE = INITIAL_ROUTE?.type === 'game' ? INITIAL_ROUTE.date : null
+let historySeeded = false
+
 function App() {
   const today = useMemo(() => stripTime(new Date()), [])
   const baseMonday = useMemo(() => getMonday(today), [today])
   const todayKey = useMemo(() => getDayKeyFromDate(today), [today])
 
-  const [weekOffset, setWeekOffset] = useState(0)
-  const [activeDay, setActiveDay] = useState(todayKey === 'sunday' ? 'sunday' : todayKey)
-  const [currentDate, setCurrentDate] = useState(() => new Date(today))
+  const [weekOffset, setWeekOffset] = useState(() =>
+    INITIAL_GAME_DATE ? Math.round((getMonday(INITIAL_GAME_DATE) - baseMonday) / MILLISECONDS_IN_DAY / 7) : 0,
+  )
+  const [activeDay, setActiveDay] = useState(() => {
+    const key = INITIAL_GAME_DATE ? getDayKeyFromDate(INITIAL_GAME_DATE) : todayKey
+    return DAY_KEYS.includes(key) ? key : 'monday'
+  })
+  const [currentDate, setCurrentDate] = useState(() => new Date(INITIAL_GAME_DATE || today))
   // The sport the visitor picked; null until they pick one (or the first
   // scores load picks the top sport in the bar for them).
   const [sportPick, setSportPick] = useState(null)
   // Navigation: a stack of detail views over the scores list, mirrored in
-  // browser history so the phone/browser back button walks back through it.
+  // browser history (and the URL, see lib/routes) so the phone/browser back
+  // button walks back through it.
   // Each entry is { type: 'game' | 'team' | 'player' | 'leaders', value }.
-  const [viewStack, setViewStack] = useState([])
+  const [viewStack, setViewStack] = useState(() =>
+    INITIAL_ROUTE && INITIAL_ROUTE.type !== 'game' ? [{ type: INITIAL_ROUTE.type, value: INITIAL_ROUTE.value }] : [],
+  )
+  // A shared game link waits here until its day's scoreboard has loaded.
+  const [pendingGame, setPendingGame] = useState(() => (INITIAL_ROUTE?.type === 'game' ? INITIAL_ROUTE : null))
   const [searchOpen, setSearchOpen] = useState(false)
   // The header button's box when search is opened from it (the panel grows out of it).
   const [searchOrigin, setSearchOrigin] = useState(null)
@@ -2138,7 +2140,18 @@ function App() {
   // Until the visitor picks, show the top sport. The pick is then locked in
   // (below), so the list doesn't switch sports when the order shifts.
   const selectedSport = sportPick ?? sportOrder[0].value
-  if (sportPick === null && !isLoading && scores.length) setSportPick(sportOrder[0].value)
+  // A shared game link: once its day has loaded, open the game over its
+  // sport's list (or just show the list if the game isn't on that day).
+  if (pendingGame && !isLoading && scores.length) {
+    const game = scores.find((g) => String(g.id) === pendingGame.id && g.sport === pendingGame.sport)
+    setPendingGame(null)
+    if (game) {
+      setViewStack([{ type: 'game', value: game }])
+      setSportPick(barSport(game.sport))
+    }
+  } else if (sportPick === null && !pendingGame && !isLoading && scores.length) {
+    setSportPick(sportOrder[0].value)
+  }
   const { openLogin } = useAuth()
   const { mode: themeMode, setMode: setThemeMode } = useTheme()
   const listScrollRef = useRef(0)
@@ -2154,6 +2167,24 @@ function App() {
   // (see openFromSearch).
   const pendingFreshView = useRef(null)
 
+  // Opened at a shared link: put the scores list underneath it in history,
+  // so Back goes to the list rather than off the site. (Once, even under
+  // StrictMode's double effects.)
+  useEffect(() => {
+    if (!INITIAL_ROUTE || historySeeded) return
+    historySeeded = true
+    const url = window.location.pathname + window.location.search
+    try {
+      window.history.replaceState({ qsDepth: 0 }, '', '/')
+      window.history.pushState({ qsDepth: 1 }, '', url)
+    } catch { /* ignore */ }
+  }, [])
+
+  // Browser tab title follows the page (player/team pages refine it once loaded).
+  useEffect(() => {
+    document.title = titleFor(topView)
+  }, [topView])
+
   // Browser/phone back button pops detail views.
   useEffect(() => {
     const onPop = (e) => {
@@ -2162,11 +2193,17 @@ function App() {
       if (fresh && !depth) {
         pendingFreshView.current = null
         setViewStack([fresh])
-        try { window.history.pushState({ qsDepth: 1 }, '') } catch { /* ignore */ }
+        try { window.history.pushState({ qsDepth: 1 }, '', pathFor(fresh) ?? '/') } catch { /* ignore */ }
         window.scrollTo(0, 0)
         return
       }
-      setViewStack((stack) => stack.slice(0, depth))
+      setViewStack((stack) => {
+        if (depth <= stack.length) return stack.slice(0, depth)
+        // Forward button: reopen the page from its URL (not games or
+        // leaderboards, which need data the URL doesn't hold).
+        const route = routeFrom(window.location)
+        return route && route.type !== 'game' ? [...stack, { type: route.type, value: route.value }] : stack
+      })
       if (!depth) requestAnimationFrame(() => window.scrollTo(0, listScrollRef.current))
     }
     window.addEventListener('popstate', onPop)
@@ -2202,8 +2239,8 @@ function App() {
   }, [baseMonday, weekOffset])
 
   const closeAllViews = () => {
-    if (window.history.state?.qsDepth) {
-      try { window.history.replaceState(null, '') } catch { /* ignore */ }
+    if (window.history.state?.qsDepth || window.location.pathname !== '/') {
+      try { window.history.replaceState(null, '', '/') } catch { /* ignore */ }
     }
     setViewStack([])
   }
@@ -2277,7 +2314,9 @@ function App() {
     if (sameAsTop) return
     const next = [...viewStack, { type, value }]
     setViewStack(next)
-    try { window.history.pushState({ qsDepth: next.length }, '') } catch { /* ignore */ }
+    // Leaderboards keep the URL of the page they were opened from.
+    const url = pathFor({ type, value }) ?? window.location.pathname + window.location.search
+    try { window.history.pushState({ qsDepth: next.length }, '', url) } catch { /* ignore */ }
     window.scrollTo(0, 0)
   }
 
@@ -2297,7 +2336,7 @@ function App() {
     const depth = window.history.state?.qsDepth || 0
     if (!depth) {
       setViewStack([{ type, value }])
-      try { window.history.pushState({ qsDepth: 1 }, '') } catch { /* ignore */ }
+      try { window.history.pushState({ qsDepth: 1 }, '', pathFor({ type, value }) ?? '/') } catch { /* ignore */ }
       window.scrollTo(0, 0)
       return
     }
