@@ -52,6 +52,7 @@ import { leaguePath, pathFor, routeFrom, titleFor } from './lib/routes'
 import { LEAGUE_SPORTS } from './lib/standings'
 import { LeagueStandings } from './pages/LeagueStandings'
 import { LeagueLeaders } from './pages/LeagueLeaders'
+import { useHeaderFit } from './hooks/useHeaderFit'
 import { SPORT_LABEL } from './lib/players'
 
 const SUMMARY_REFRESH_MS = 15_000
@@ -2487,6 +2488,9 @@ function App() {
     setLeagueView(!viewStack.length && activeLeagueView === view ? 'scores' : view)
     window.scrollTo(0, 0)
   }
+  const headerRef = useRef(null)
+  useHeaderFit(headerRef)
+
   const leagueButtons = LEAGUE_SPORTS.has(selectedSport) ? (
     <nav className="header-league" aria-label={`${SPORT_LABEL[selectedSport]} standings and leaders`}>
       {[
@@ -2718,7 +2722,7 @@ function App() {
 
   return (
     <div className="container">
-      <div className="site-header">
+      <div className="site-header" ref={headerRef}>
         <div className="header-left">
           <div className="header-logo-group" onClick={handleBackToScores} style={{ cursor: 'pointer' }}>
             <img className="header-logo" src="/logo-header.png" alt="" width="32" height="32" />

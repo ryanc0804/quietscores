@@ -497,12 +497,7 @@
 .header-league-btn.active { color: var(--text-primary); border-color: var(--border-primary); background: rgba(var(--overlay), 0.06); }
 .header-league-desktop { display: contents; }
 .header-league-mobile { display: none; }
-/* Narrow laptops: Standings / Leaders drop to icons (with tooltips) so the
-   sport bar keeps its room; Search keeps its label until phones. */
-@media (max-width: 1100px) {
-    .header-league-btn { width: 34px; padding: 0; justify-content: center; }
-    .header-league-btn span { display: none; }
-}
+/* Narrow screens drop Standings / Leaders to icons: see .hdr-icons. */
 @media (max-width: 480px) {
     .header-league-desktop { display: none; }
     .header-center { display: flex; align-items: center; gap: 6px; }
