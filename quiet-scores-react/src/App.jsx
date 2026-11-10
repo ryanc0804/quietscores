@@ -16,7 +16,6 @@ import { SearchButton, SearchPalette } from './components/SearchPalette'
 import {
   Section,
   Linescore,
-  FootballEfficiency,
   FootballField,
   Timeouts,
   WinProbability,
@@ -35,9 +34,19 @@ import {
   getInjuries,
   getScoringPlays,
   getSeasonSeries,
+  getTeamStats,
   getWinProbabilitySeries,
   isFootball,
 } from './lib/gameDetails'
+
+// Hover text for team stats that need explaining.
+const STAT_HELP = {
+  successRate: 'A play is a success if it gains 40% of the yards needed on 1st down, 60% on 2nd, or all of them on 3rd and 4th.',
+  passSuccessRate: 'Success rate on dropbacks (passes, sacks, interceptions).',
+  rushSuccessRate: 'Success rate on designed runs and scrambles.',
+  explosivePlays: 'Explosive plays are runs of 10+ yards and passes of 20+.',
+  earlyPassRate: 'Share of 1st and 2nd down plays that were passes.',
+}
 import { fetchGameSummary, fetchStandings, filterStandingsByTeams, fetchUFCFightStats } from './lib/espnApi'
 import { pathFor, routeFrom, titleFor } from './lib/routes'
 
@@ -907,6 +916,10 @@ function GameSummary({ game, onBack, onOpenTeam }) {
     [summaryData, game, gameState],
   )
   const efficiency = useMemo(() => getFootballEfficiency(summaryData, game.sport), [summaryData, game.sport])
+  const teamStats = useMemo(
+    () => (awayTeam || homeTeam ? getTeamStats(awayTeam, homeTeam, game, efficiency) : null),
+    [awayTeam, homeTeam, game, efficiency],
+  )
   const injuries = useMemo(() => getInjuries(summaryData), [summaryData])
   const gameInfoRows = useMemo(() => getGameInfo(summaryData), [summaryData])
   const seasonSeries = getSeasonSeries(summaryData)
@@ -1115,102 +1128,73 @@ function GameSummary({ game, onBack, onOpenTeam }) {
   }
 
   // Reusable: Team Stats compact bar chart (used in live/final sidebar)
+  // One comparison row: away value, label, home value, and a bar of each
+  // side's share in team colors. The better side is bold (see getTeamStats).
+  const renderStatRow = (r) => (
+    <div key={r.key} className="ts-row">
+      <div className="ts-values">
+        <span className={r.better === 'away' ? 'lead' : ''}>{r.away}</span>
+        <span className="ts-label" title={STAT_HELP[r.key]}>{r.label}</span>
+        <span className={r.better === 'home' ? 'lead' : ''}>{r.home}</span>
+      </div>
+      <div className="ts-bar">
+        <span style={{ width: `${r.awayShare}%`, background: awayColor }} />
+        <span style={{ background: homeColor }} />
+      </div>
+    </div>
+  )
+
+  const renderTeamsHeader = (size) => (
+    <div className="ts-teams">
+      <span>
+        <span className="ts-logo" style={{ width: size, height: size }}><TeamLogo name={game.awayTeam} logoUrl={awayTeamLogo} /></span>
+        {game.awayAbbreviation}
+      </span>
+      <span>
+        {game.homeAbbreviation}
+        <span className="ts-logo" style={{ width: size, height: size }}><TeamLogo name={game.homeTeam} logoUrl={homeTeamLogo} /></span>
+      </span>
+    </div>
+  )
+
   const renderTeamStatsSidebar = () => {
-    if (!awayTeam?.statistics) return null
+    if (!teamStats?.featured.length) return null
     return (
       <div className="standings-section">
         <div className="section-header">
           <h3>TEAM STATS</h3>
         </div>
-        <div className="boxscore-header-teams-unified" style={{ marginBottom: '15px' }}>
-          <div className="boxscore-header-team-unified">
-            <div className="boxscore-header-logo" style={{ width: '20px', height: '20px' }}>
-              <TeamLogo name={game.awayTeam} logoUrl={awayTeamLogo} />
-            </div>
-            <span style={{ fontSize: '0.7rem', fontWeight: '700' }}>{game.awayAbbreviation}</span>
-          </div>
-          <div className="boxscore-header-team-unified">
-            <span style={{ fontSize: '0.7rem', fontWeight: '700' }}>{game.homeAbbreviation}</span>
-            <div className="boxscore-header-logo" style={{ width: '20px', height: '20px' }}>
-              <TeamLogo name={game.homeTeam} logoUrl={homeTeamLogo} />
-            </div>
-          </div>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-          {awayTeam.statistics.slice(0, 5).map((stat, idx) => {
-            const homeStat = homeTeam?.statistics?.[idx]
-            const awayVal = parseNumericValue(stat.displayValue ?? stat.value)
-            const homeVal = parseNumericValue(homeStat?.displayValue ?? homeStat?.value)
-            const total = (isNaN(awayVal) ? 0 : awayVal) + (isNaN(homeVal) ? 0 : homeVal)
-            const awayP = total > 0 ? (awayVal / total) * 100 : 50
-            const homeP = total > 0 ? (homeVal / total) * 100 : 50
-            return (
-              <div key={idx}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: '700', marginBottom: '5px' }}>
-                  <span>{stat.displayValue}</span>
-                  <span style={{ color: 'var(--text-muted)', fontWeight: '600' }}>{stat.label || stat.name}</span>
-                  <span>{homeStat?.displayValue}</span>
-                </div>
-                <div className="boxscore-row-bar" style={{ height: '4px' }}>
-                  <div className="boxscore-row-bar-segment away" style={{ width: `${awayP}%`, background: awayColor }} />
-                  <div className="boxscore-row-bar-segment home" style={{ width: `${homeP}%`, background: homeColor }} />
-                </div>
-              </div>
-            )
-          })}
-        </div>
+        {renderTeamsHeader(20)}
+        <div className="ts-list">{teamStats.featured.map(renderStatRow)}</div>
+        {teamStats.rows.length > teamStats.featured.length && (
+          <button type="button" className="ts-more" onClick={() => setDetailTab('teamstats')}>
+            All team stats →
+          </button>
+        )}
       </div>
     )
   }
 
-  // Reusable: Full Team Stats table (used in team-stats tab)
-  const renderTeamStatsTab = () => (
-    <div className="boxscore-container">
-      <table className="boxscore-table">
-        <thead>
-          <tr>
-            <th colSpan={3} className="boxscore-title-header">
-              <div className="boxscore-header-teams-unified">
-                <div className="boxscore-header-team-unified">
-                  <div className="boxscore-header-logo"><TeamLogo name={game.awayTeam} logoUrl={awayTeamLogo} /></div>
-                  <span style={{ color: '#e0e0e0' }}>{game.awayTeam}</span>
-                </div>
-                <div className="boxscore-header-team-unified">
-                  <div className="boxscore-header-logo"><TeamLogo name={game.homeTeam} logoUrl={homeTeamLogo} /></div>
-                  <span style={{ color: '#e0e0e0' }}>{game.homeTeam}</span>
-                </div>
-              </div>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {awayTeam?.statistics?.map((stat, idx) => {
-            const homeStat = homeTeam?.statistics?.[idx]
-            const awayVal = parseNumericValue(stat.displayValue ?? stat.value)
-            const homeVal = parseNumericValue(homeStat?.displayValue ?? homeStat?.value)
-            const total = (isNaN(awayVal) ? 0 : awayVal) + (isNaN(homeVal) ? 0 : homeVal)
-            const awayP = total > 0 ? (awayVal / total) * 100 : 50
-            const homeP = total > 0 ? (homeVal / total) * 100 : 50
-            return (
-              <tr key={idx}>
-                <td className="stat-label">{stat.label || stat.name}</td>
-                <td colSpan={2} className="boxscore-bar-cell">
-                  <div className="boxscore-row-with-values">
-                    <span className="boxscore-value away">{stat.displayValue}</span>
-                    <div className="boxscore-row-bar">
-                      <div className="boxscore-row-bar-segment away" style={{ width: `${awayP}%`, background: awayColor }} />
-                      <div className="boxscore-row-bar-segment home" style={{ width: `${homeP}%`, background: homeColor }} />
-                    </div>
-                    <span className="boxscore-value home">{homeStat?.displayValue}</span>
-                  </div>
-                </td>
-              </tr>
-            )
+  // Team Stats tab: every row, under group headings where a sport has them.
+  const renderTeamStatsTab = () => {
+    if (!teamStats?.rows.length) return null
+    let lastGroup
+    return (
+      <div className="ts-tab">
+        {renderTeamsHeader(26)}
+        <div className="ts-list">
+          {teamStats.rows.map((r) => {
+            const heading = r.group !== lastGroup && (r.group || lastGroup) ? <h4 key={`g-${r.group || 'box'}`} className="ts-group">{r.group || 'Box score'}</h4> : null
+            lastGroup = r.group
+            return [heading, renderStatRow(r)]
           })}
-        </tbody>
-      </table>
-    </div>
-  )
+        </div>
+        {teamStats.rows.some((r) => r.key === 'successRate') && (
+          <p className="ts-note">{STAT_HELP.successRate} {STAT_HELP.explosivePlays}</p>
+        )}
+      </div>
+    )
+  }
 
   // Reusable: Box Score tab content
   const renderBoxScoreTab = () => {
@@ -2007,7 +1991,7 @@ function GameSummary({ game, onBack, onOpenTeam }) {
     { id: 'teamstats', label: 'Team Stats' },
   ].filter((t) => {
     if (t.id === 'plays') return getAllPlays(summaryData, game.sport).length > 0
-    if (t.id === 'teamstats') return !!awayTeam?.statistics?.length
+    if (t.id === 'teamstats') return !!teamStats?.rows.length
     if (t.id === 'boxscore') return !!boxscore?.players?.length
     return true
   })
@@ -2033,7 +2017,6 @@ function GameSummary({ game, onBack, onOpenTeam }) {
           </Section>
         )}
         {renderWinProbability()}
-        <FootballEfficiency efficiency={efficiency} game={game} awayColor={awayColor} homeColor={homeColor} />
         {scoringPlays.length > 0 && (
           <Section title="Scoring Summary">
             <ScoringSummary plays={scoringPlays} game={game} awayLogo={awayTeamLogo} homeLogo={homeTeamLogo} />

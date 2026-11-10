@@ -166,6 +166,130 @@ export function getFootballEfficiency(summary, sport) {
   return Object.keys(teams).length ? teams : null
 }
 
+/* ---------------------------------------------------------- team stats */
+
+// Fewer is better (bolding picks the lower side).
+const LOWER_BETTER = new Set([
+  'turnovers', 'totalTurnovers', 'teamTurnovers', 'interceptions', 'fumblesLost', 'totalPenaltiesYards',
+  'sacksYardsLost', 'giveaways', 'penalties', 'penaltyMinutes', 'fouls', 'technicalFouls',
+  'totalTechnicalFouls', 'flagrantFouls', 'mlb:SO', 'mlb:LOB', 'mlb:E',
+])
+// A style or a count with no better side: no bolding.
+const NEUTRAL = new Set([
+  'totalOffensivePlays', 'totalDrives', 'rushingAttempts', 'possessionTime', 'leadChanges', 'turnoverPoints',
+  'firstDownsPenalty', 'earlyPassRate', 'teamTurnovers',
+])
+// "made-attempts" stats compared by their rate rather than the first number.
+const RATIO = new Set(['thirdDownEff', 'fourthDownEff', 'redZoneAttempts', 'completionAttempts', 'powerPlay'])
+const PERCENT = /(Pct|Percent|percentage)$/
+// ESPN labels that read wrong.
+const LABEL_FIX = { turnoverPoints: 'Points off turnovers', leadChanges: 'Lead changes', defensiveTouchdowns: 'Defensive / ST TDs' }
+
+// The few that lead the sidebar, per sport (the tab shows everything).
+const FEATURED = {
+  football: ['successRate', 'totalYards', 'yardsPerPlay', 'thirdDownEff', 'turnovers', 'possessionTime'],
+  basketball: ['fieldGoalPct', 'threePointFieldGoalPct', 'totalRebounds', 'assists', 'totalTurnovers', 'pointsInPaint'],
+  hockey: ['shotsTotal', 'powerPlay', 'faceoffPercent', 'hits', 'blockedShots', 'giveaways'],
+  baseball: ['mlb:H', 'mlb:HR', 'mlb:BB', 'mlb:SO', 'mlb:LOB', 'mlb:E'],
+}
+const MLB_ROWS = [
+  ['batting', 'H', 'Hits'], ['batting', 'HR', 'Home runs'], ['batting', 'BB', 'Walks'], ['batting', 'SO', 'Strikeouts'],
+  ['batting', 'SB', 'Stolen bases'], ['batting', 'LOB', 'Left on base'], ['fielding', 'E', 'Errors'], ['fielding', 'DP', 'Double plays'],
+]
+
+function familyOf(sport) {
+  if (isFootball(sport)) return 'football'
+  if (sport === 'nba' || sport === 'college-basketball' || sport === 'wnba') return 'basketball'
+  if (sport === 'nhl') return 'hockey'
+  if (sport === 'mlb') return 'baseball'
+  return null
+}
+
+/** A comparable number for a stat's display value ("4-10" → 0.4 for rates, "20:24" → seconds). */
+function statNumber(key, display) {
+  const s = String(display ?? '').trim()
+  if (!s || s === '-' || s === '--') return NaN
+  if (key === 'possessionTime') {
+    const [m, sec] = s.split(':').map(Number)
+    return m * 60 + (sec || 0)
+  }
+  const pair = /^(-?\d+(?:\.\d+)?)\s*[-/]\s*(\d+(?:\.\d+)?)$/.exec(s)
+  if (pair) {
+    const a = Number(pair[1])
+    const b = Number(pair[2])
+    return RATIO.has(key) ? (b ? a / b : NaN) : a
+  }
+  const n = parseFloat(s.replace(/[^\d.-]/g, ''))
+  return Number.isFinite(n) ? n : NaN
+}
+
+/**
+ * Team stats for a game page, away vs home: ESPN's box score (matched by
+ * stat name, duplicates dropped, baseball's grouped stats flattened) plus,
+ * for football, success rate and the other play-by-play efficiency numbers.
+ * Each row: { key, label, group, away, home, better: 'away' | 'home' | null,
+ * awayShare (0–100, for the bar) }. `featured` is the sidebar's short list.
+ */
+export function getTeamStats(awayBox, homeBox, game, efficiency) {
+  const family = familyOf(game.sport)
+  const rows = []
+  const push = (key, label, group, away, home) => {
+    if (rows.some((r) => r.key === key)) return
+    rows.push({ key, label, group, away: String(away ?? '–'), home: String(home ?? '–') })
+  }
+
+  if (family === 'football' && efficiency) {
+    const a = efficiency[String(game.awayTeamId)]
+    const h = efficiency[String(game.homeTeamId)]
+    if (a && h && a.plays >= 5 && h.plays >= 5) {
+      const pct = (n, d) => (d ? `${Math.round((100 * n) / d)}%` : '–')
+      push('successRate', 'Success rate', 'Efficiency', pct(a.success, a.plays), pct(h.success, h.plays))
+      push('passSuccessRate', 'Pass success rate', 'Efficiency', pct(a.passSuccess, a.passPlays), pct(h.passSuccess, h.passPlays))
+      push('rushSuccessRate', 'Rush success rate', 'Efficiency', pct(a.runSuccess, a.runPlays), pct(h.runSuccess, h.runPlays))
+      push('explosivePlays', 'Explosive plays', 'Efficiency', a.explosive, h.explosive)
+      push('earlyPassRate', 'Early-down pass rate', 'Efficiency', pct(a.earlyPass, a.early), pct(h.earlyPass, h.early))
+    }
+  }
+
+  if (family === 'baseball') {
+    const stat = (box, group, abbr) =>
+      box?.statistics?.find((g) => g.name === group)?.stats?.find((s) => s.abbreviation === abbr)?.displayValue
+    for (const [group, abbr, label] of MLB_ROWS) {
+      const a = stat(awayBox, group, abbr)
+      const h = stat(homeBox, group, abbr)
+      if (a != null || h != null) push(`mlb:${abbr}`, label, group === 'batting' ? 'Batting' : 'Fielding', a, h)
+    }
+  } else {
+    const homeByName = new Map((homeBox?.statistics || []).map((s) => [s.name, s]))
+    for (const s of awayBox?.statistics || []) {
+      if (!s.name || s.displayValue == null) continue
+      const pctSign = (v) => (PERCENT.test(s.name) && v != null && !String(v).includes('%') ? `${v}%` : v)
+      push(s.name, LABEL_FIX[s.name] || s.label || s.displayName || s.name, null, pctSign(s.displayValue), pctSign(homeByName.get(s.name)?.displayValue))
+    }
+    // Hockey: power play as goals / chances.
+    const pp = (box) => {
+      const by = new Map((box?.statistics || []).map((s) => [s.name, s.displayValue]))
+      return by.has('powerPlayGoals') ? `${by.get('powerPlayGoals')}/${by.get('powerPlayOpportunities') ?? 0}` : null
+    }
+    if (family === 'hockey' && pp(awayBox) != null) push('powerPlay', 'Power play', null, pp(awayBox), pp(homeBox))
+  }
+
+  for (const r of rows) {
+    const a = statNumber(r.key, r.away)
+    const h = statNumber(r.key, r.home)
+    const av = Number.isFinite(a) ? Math.max(0, a) : 0
+    const hv = Number.isFinite(h) ? Math.max(0, h) : 0
+    r.awayShare = av + hv > 0 ? (100 * av) / (av + hv) : 50
+    r.better = NEUTRAL.has(r.key) || !Number.isFinite(a) || !Number.isFinite(h) || a === h
+      ? null
+      : (a > h) !== LOWER_BETTER.has(r.key) ? 'away' : 'home'
+  }
+
+  const featuredKeys = FEATURED[family] || []
+  const featured = featuredKeys.map((k) => rows.find((r) => r.key === k)).filter(Boolean)
+  return { rows, featured: featured.length >= 3 ? featured : rows.slice(0, 6) }
+}
+
 export function getScoringPlays(summary, sport) {
   if (Array.isArray(summary?.scoringPlays) && summary.scoringPlays.length) return summary.scoringPlays
   return getAllPlays(summary, sport).filter((p) => p.scoringPlay)
