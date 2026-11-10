@@ -7,6 +7,59 @@ function Logo({ src, alt = '', size = 20 }) {
   return <img className="gd-logo" src={src} alt={alt} width={size} height={size} onError={() => setFailed(true)} />
 }
 
+/**
+ * Football efficiency, away vs home (from getFootballEfficiency). Each row's
+ * bar leans toward the better side; early-down pass rate is a style, not a
+ * score, so its bar is neutral.
+ */
+export function FootballEfficiency({ efficiency, game, awayColor, homeColor }) {
+  const away = efficiency?.[String(game.awayTeamId)]
+  const home = efficiency?.[String(game.homeTeamId)]
+  if (!away || !home || away.plays < 5 || home.plays < 5) return null
+  const rate = (a, b) => (b ? (100 * a) / b : NaN)
+  const pct = (v) => (Number.isFinite(v) ? `${Math.round(v)}%` : '–')
+  const rows = [
+    { label: 'Success rate', a: rate(away.success, away.plays), h: rate(home.success, home.plays), fmt: pct },
+    { label: 'Pass success rate', a: rate(away.passSuccess, away.passPlays), h: rate(home.passSuccess, home.passPlays), fmt: pct },
+    { label: 'Rush success rate', a: rate(away.runSuccess, away.runPlays), h: rate(home.runSuccess, home.runPlays), fmt: pct },
+    { label: 'Yards per play', a: away.yards / away.plays, h: home.yards / home.plays, fmt: (v) => v.toFixed(1) },
+    { label: 'Explosive plays', a: away.explosive, h: home.explosive, fmt: String },
+    { label: 'Early-down pass rate', a: rate(away.earlyPass, away.early), h: rate(home.earlyPass, home.early), fmt: pct, neutral: true },
+  ]
+  return (
+    <Section title="Efficiency" right={<span className="gd-muted gd-eff-plays">{away.plays} – {home.plays} plays</span>}>
+      <div className="gd-eff">
+        <div className="gd-eff-teams">
+          <span>{game.awayAbbreviation}</span>
+          <span>{game.homeAbbreviation}</span>
+        </div>
+        {rows.map((r) => {
+          const a = Number.isFinite(r.a) ? Math.max(0, r.a) : 0
+          const h = Number.isFinite(r.h) ? Math.max(0, r.h) : 0
+          const awayShare = a + h > 0 ? (100 * a) / (a + h) : 50
+          return (
+            <div key={r.label} className="gd-eff-row">
+              <div className="gd-eff-values">
+                <span className={!r.neutral && a > h ? 'lead' : ''}>{Number.isFinite(r.a) ? r.fmt(r.a) : '–'}</span>
+                <span className="gd-muted">{r.label}</span>
+                <span className={!r.neutral && h > a ? 'lead' : ''}>{Number.isFinite(r.h) ? r.fmt(r.h) : '–'}</span>
+              </div>
+              <div className={`gd-eff-bar ${r.neutral ? 'neutral' : ''}`}>
+                <span style={{ width: `${awayShare}%`, background: r.neutral ? undefined : awayColor }} />
+                <span style={{ background: r.neutral ? undefined : homeColor }} />
+              </div>
+            </div>
+          )
+        })}
+        <p className="gd-eff-note gd-muted">
+          A play is a success if it gains 40% of the yards needed on 1st down, 60% on 2nd, or all of them on 3rd and 4th.
+          Explosive: runs of 10+ yards, passes of 20+.
+        </p>
+      </div>
+    </Section>
+  )
+}
+
 export function Section({ title, right, children, className = '' }) {
   return (
     <section className={`gd-card ${className}`}>

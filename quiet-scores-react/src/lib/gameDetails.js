@@ -111,6 +111,61 @@ export function getAllPlays(summary, sport) {
   return summary?.plays || []
 }
 
+// Offensive snaps in ESPN's play types (fumbles are sorted by their text).
+const RUN_TYPES = new Set(['Rush', 'Rushing Touchdown'])
+const PASS_TYPES = new Set(['Pass Reception', 'Pass Incompletion', 'Sack', 'Pass Interception Return', 'Passing Touchdown', 'Interception Return Touchdown'])
+const FUMBLE_TYPES = new Set(['Fumble Recovery (Opponent)', 'Fumble Recovery (Own)', 'Fumble Return Touchdown'])
+
+/**
+ * Football efficiency per team from the play-by-play: success rate (a play
+ * succeeds if it gains 40% of the yards needed on 1st down, 60% on 2nd, all
+ * of them on 3rd/4th, or scores; turnovers fail), split by pass and run, plus
+ * yards per play, explosive plays (runs of 10+, passes of 20+) and how often
+ * a team throws on 1st and 2nd down. Kneels, spikes, penalties with no play
+ * and special teams are left out. Returns { [teamId]: stats } or null.
+ */
+export function getFootballEfficiency(summary, sport) {
+  if (!isFootball(sport)) return null
+  const teams = {}
+  for (const p of getAllPlays(summary, sport)) {
+    const type = p.type?.text
+    const text = p.text || ''
+    const down = p.start?.down
+    const dist = p.start?.distance
+    if (!(down >= 1 && down <= 4) || !(dist > 0)) continue
+    if (/kneels|spiked/i.test(text)) continue
+    const pass = PASS_TYPES.has(type) || (FUMBLE_TYPES.has(type) && /\bpass\b|sacked/i.test(text))
+    const run = !pass && (RUN_TYPES.has(type) || FUMBLE_TYPES.has(type))
+    if (!pass && !run) continue
+    const team = String(p.start?.team?.id || p.teamParticipants?.find((t) => t.type === 'offense')?.id || '')
+    if (!team) continue
+
+    const yards = Number(p.statYardage) || 0
+    const offenseScored = p.scoringPlay && /Rushing Touchdown|Passing Touchdown/.test(type) && !p.isTurnover
+    const needed = down === 1 ? 0.4 * dist : down === 2 ? 0.6 * dist : dist
+    const success = offenseScored || (!p.isTurnover && yards >= needed)
+    const explosive = !p.isTurnover && (pass ? yards >= 20 && type !== 'Sack' : yards >= 10)
+
+    const t = (teams[team] ??= { plays: 0, success: 0, passPlays: 0, passSuccess: 0, runPlays: 0, runSuccess: 0, yards: 0, explosive: 0, early: 0, earlyPass: 0 })
+    t.plays++
+    t.yards += yards
+    if (success) t.success++
+    if (explosive) t.explosive++
+    if (pass) {
+      t.passPlays++
+      if (success) t.passSuccess++
+    } else {
+      t.runPlays++
+      if (success) t.runSuccess++
+    }
+    if (down <= 2) {
+      t.early++
+      if (pass) t.earlyPass++
+    }
+  }
+  return Object.keys(teams).length ? teams : null
+}
+
 export function getScoringPlays(summary, sport) {
   if (Array.isArray(summary?.scoringPlays) && summary.scoringPlays.length) return summary.scoringPlays
   return getAllPlays(summary, sport).filter((p) => p.scoringPlay)

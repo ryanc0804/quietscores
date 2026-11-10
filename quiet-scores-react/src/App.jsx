@@ -16,6 +16,7 @@ import { SearchButton, SearchPalette } from './components/SearchPalette'
 import {
   Section,
   Linescore,
+  FootballEfficiency,
   FootballField,
   Timeouts,
   WinProbability,
@@ -28,6 +29,7 @@ import {
 import {
   buildLinescore,
   getAllPlays,
+  getFootballEfficiency,
   getFootballSituation,
   getGameInfo,
   getInjuries,
@@ -904,6 +906,7 @@ function GameSummary({ game, onBack, onOpenTeam }) {
     () => (isFootball(game.sport) && gameState === 'live' ? getFootballSituation(summaryData, game) : null),
     [summaryData, game, gameState],
   )
+  const efficiency = useMemo(() => getFootballEfficiency(summaryData, game.sport), [summaryData, game.sport])
   const injuries = useMemo(() => getInjuries(summaryData), [summaryData])
   const gameInfoRows = useMemo(() => getGameInfo(summaryData), [summaryData])
   const seasonSeries = getSeasonSeries(summaryData)
@@ -2030,6 +2033,7 @@ function GameSummary({ game, onBack, onOpenTeam }) {
           </Section>
         )}
         {renderWinProbability()}
+        <FootballEfficiency efficiency={efficiency} game={game} awayColor={awayColor} homeColor={homeColor} />
         {scoringPlays.length > 0 && (
           <Section title="Scoring Summary">
             <ScoringSummary plays={scoringPlays} game={game} awayLogo={awayTeamLogo} homeLogo={homeTeamLogo} />
