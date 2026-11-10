@@ -42,8 +42,8 @@ const SUMMARY_REFRESH_MS = 15_000
 
 const SOCCER_SPORT_KEYS = ['worldcup', 'mls', 'epl', 'ucl', 'laliga', 'bundesliga', 'seriea', 'ligue1']
 
+// Default order; the bar shows sports with live games first (see sportOrder).
 const SPORT_BUTTONS = [
-  { label: 'All Sports', value: 'all' },
   { label: 'NFL', value: 'nfl' },
   { label: 'NBA', value: 'nba' },
   { label: 'MLB', value: 'mlb' },
@@ -1988,7 +1988,9 @@ function App() {
   const [weekOffset, setWeekOffset] = useState(0)
   const [activeDay, setActiveDay] = useState(todayKey === 'sunday' ? 'sunday' : todayKey)
   const [currentDate, setCurrentDate] = useState(() => new Date(today))
-  const [selectedSport, setSelectedSport] = useState('all')
+  // The sport the visitor picked; null until they pick one (or the first
+  // scores load picks the busiest sport for them).
+  const [sportPick, setSportPick] = useState(null)
   // Navigation: a stack of detail views over the scores list, mirrored in
   // browser history so the phone/browser back button walks back through it.
   // Each entry is { type: 'game' | 'team' | 'player' | 'leaders', value }.
@@ -2004,6 +2006,20 @@ function App() {
   const [showLiveOnly, setShowLiveOnly] = useState(false)
 
   const { scores, isLoading, error } = useScores(currentDate)
+
+  // Sport bar order: most live games first, then sports with games on this
+  // date, then the rest, each in the default order.
+  const sportOrder = useMemo(() => {
+    const isLive = (g) => g.status === 'live' || g.status === 'halftime'
+    return SPORT_BUTTONS.map((button, index) => {
+      const games = scores.filter((g) => (button.value === 'soccer' ? SOCCER_SPORT_KEYS.includes(g.sport) : g.sport === button.value))
+      return { ...button, index, live: games.filter(isLive).length, hasGames: games.length > 0 }
+    }).sort((a, b) => b.live - a.live || Number(b.hasGames) - Number(a.hasGames) || a.index - b.index)
+  }, [scores])
+  // Until the visitor picks, show the busiest sport. The pick is then locked
+  // in (below), so the list doesn't switch sports when the order shifts.
+  const selectedSport = sportPick ?? sportOrder[0].value
+  if (sportPick === null && !isLoading && scores.length) setSportPick(sportOrder[0].value)
   const { favorites, isFavorite, toggleFavorite, gameHasFavorite, syncError, needsLogin } = useFavorites()
   const { openLogin } = useAuth()
   const { mode: themeMode, setMode: setThemeMode } = useTheme()
@@ -2075,7 +2091,7 @@ function App() {
   }
 
   const handleSportClick = (sport) => {
-    setSelectedSport(sport)
+    setSportPick(sport)
     setShowLiveOnly(false)
     if (viewStack.length) closeAllViews()
   }
@@ -2189,6 +2205,8 @@ function App() {
 
   const handleBackToScores = () => {
     closeAllViews()
+    setSportPick(null) // back to the busiest sport
+    setShowLiveOnly(false)
     setWeekOffset(0)
     setActiveDay(todayKey)
     setCurrentDate(new Date(today))
@@ -2212,13 +2230,11 @@ function App() {
 
   const sortedScores = useMemo(() => {
     let baseScores =
-      selectedSport === 'all'
-        ? scores
-        : selectedSport === 'favorites'
-          ? scores.filter(gameHasFavorite)
-          : selectedSport === 'soccer'
-            ? scores.filter((game) => SOCCER_SPORT_KEYS.includes(game.sport))
-            : scores.filter((game) => game.sport === selectedSport)
+      selectedSport === 'favorites'
+        ? scores.filter(gameHasFavorite)
+        : selectedSport === 'soccer'
+          ? scores.filter((game) => SOCCER_SPORT_KEYS.includes(game.sport))
+          : scores.filter((game) => game.sport === selectedSport)
 
     if (selectedConference !== 'all') {
       baseScores = baseScores.filter((game) => gameInConference(game, selectedConference))
@@ -2253,13 +2269,11 @@ function App() {
 
   const liveCount = useMemo(() => {
     const sportScores =
-      selectedSport === 'all'
-        ? scores
-        : selectedSport === 'favorites'
-          ? scores.filter(gameHasFavorite)
-          : selectedSport === 'soccer'
-            ? scores.filter((game) => SOCCER_SPORT_KEYS.includes(game.sport))
-            : scores.filter((game) => game.sport === selectedSport)
+      selectedSport === 'favorites'
+        ? scores.filter(gameHasFavorite)
+        : selectedSport === 'soccer'
+          ? scores.filter((game) => SOCCER_SPORT_KEYS.includes(game.sport))
+          : scores.filter((game) => game.sport === selectedSport)
     return sportScores.filter((game) => game.status === 'live' || game.status === 'halftime').length
   }, [scores, selectedSport, gameHasFavorite])
 
@@ -2273,7 +2287,7 @@ function App() {
     <FavoritesUpcoming favorites={favoritesOffToday} onOpenTeam={handleOpenTeamPage} />
   )
   // A single sport with nothing on this date points at its next game day.
-  const singleSport = !['all', 'favorites'].includes(selectedSport) && !showLiveOnly
+  const singleSport = selectedSport !== 'favorites' && !showLiveOnly
   const sportLabel = SPORT_BUTTONS.find((b) => b.value === selectedSport)?.label || selectedSport
 
   const renderCard = (game, highlight = false) => (
@@ -2479,7 +2493,7 @@ function App() {
             >
               {selectedSport === 'favorites' ? '★' : '☆'}
             </button>
-            {SPORT_BUTTONS.map((button) => (
+            {sportOrder.map((button) => (
               <button
                 key={button.value}
                 className={['sport-btn', selectedSport === button.value ? 'active' : '']
