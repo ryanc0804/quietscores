@@ -522,6 +522,7 @@ function TeamRow({ game, side, onOpenTeam, isFavorite, onToggleFavorite }) {
         <div className="team-details">
           <span className="team-name">
             {displayName}
+            {hasPossession && <PossessionIcon sport={game.sport} />}
             {scheduled && teamSpread !== null && (
               <span className="team-spread"> ({formatSpread(teamSpread)})</span>
             )}
@@ -536,6 +537,26 @@ function TeamRow({ game, side, onOpenTeam, isFavorite, onToggleFavorite }) {
         {scheduled ? '' : score}
       </span>
     </div>
+  )
+}
+
+/** Small ball after the name of the team with the ball (football) or at bat (MLB). */
+function PossessionIcon({ sport }) {
+  const label = sport === 'mlb' ? 'At bat' : 'Has the ball'
+  return (
+    <span className={`possession-icon ${sport === 'mlb' ? 'baseball' : 'football'}`} role="img" aria-label={label} title={label}>
+      {sport === 'mlb' ? (
+        <svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true">
+          <circle cx="8" cy="8" r="6.5" fill="#f4f1ea" stroke="currentColor" strokeWidth="1" />
+          <path d="M4.2 3.2c1.4 1.3 1.4 8.3 0 9.6M11.8 3.2c-1.4 1.3-1.4 8.3 0 9.6" fill="none" stroke="#d6453d" strokeWidth="1" />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 20 12" width="15" height="9" aria-hidden="true">
+          <path d="M10 .8C4.6.8 1 4.2.6 6c.4 1.8 4 5.2 9.4 5.2s9-3.4 9.4-5.2C19 4.2 15.4.8 10 .8z" fill="#9a5b2e" />
+          <path d="M6.5 6h7M8 4.6v2.8M10 4.6v2.8M12 4.6v2.8" stroke="#fff" strokeWidth="0.9" strokeLinecap="round" />
+        </svg>
+      )}
+    </span>
   )
 }
 

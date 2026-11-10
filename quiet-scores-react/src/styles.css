@@ -1446,17 +1446,13 @@ body.pwa-mode {
     box-shadow: none;
 }
 
-/* Possession/At-bat highlighting */
-.team.possession .team-name,
-.team.at-bat .team-name {
-    color: rgba(var(--overlay), 0.9);
-    font-weight: 500;
-}
-
-.team.possession,
-.team.at-bat {
-    border-left: 2px solid rgba(0, 123, 255, 0.4);
-    padding-left: 6px;
+/* Possession/At-bat: a small ball after the team name (PossessionIcon). */
+.possession-icon {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 6px;
+    vertical-align: -1px;
+    color: var(--text-muted);
 }
 
 .team.possession .team-score,
