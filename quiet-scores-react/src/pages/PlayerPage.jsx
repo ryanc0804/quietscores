@@ -294,8 +294,8 @@ export function PlayerPage({ player: ref, onBack, onOpenTeam, onOpenLeaderboard 
                 </h2>
                 <div className="pp-tiles">
                   {advanced.tiles.map((t, tileIndex) => {
-                    const rankText = t.rank ? `${t.rank} in ${SPORT_LABEL[player.sport]}` : t.reason
-                    const pct = Number.isFinite(t.percentile) ? `, ${t.percentile}th percentile` : ''
+                    const rankText = t.rank ? `${t.rank} ${t.scope ? `among ${t.scope}` : `in ${SPORT_LABEL[player.sport]}`}` : t.reason
+                    const pct = Number.isFinite(t.percentile) ? `, ${formatRank(t.percentile)} percentile` : ''
                     const body = (
                       <>
                         <div className="pp-tile-label">{t.label}</div>
