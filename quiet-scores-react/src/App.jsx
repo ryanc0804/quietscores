@@ -433,6 +433,10 @@ function TeamRow({ game, side, onOpenTeam, isFavorite, onToggleFavorite }) {
   const logoUrl = isAway ? game.awayLogo : game.homeLogo
   const displayName = teamShortName || teamName
   const fallbackText = getFallbackText(teamName, teamShortName, teamAbbreviation)
+  // Flash a live score when it changes (not on first render). Keying the
+  // score by its value restarts the animation on every new score.
+  const [firstScore] = useState(score)
+  const scoreChanged = (game.status === 'live' || game.status === 'halftime') && String(score) !== String(firstScore)
 
   // Check for possession/at-bat highlighting
   let hasPossession = false
@@ -533,7 +537,10 @@ function TeamRow({ game, side, onOpenTeam, isFavorite, onToggleFavorite }) {
           {record ? <span className="team-record">{record}</span> : null}
         </div>
       </div>
-      <span className={['team-score', scheduled ? 'scheduled' : ''].join(' ')}>
+      <span
+        key={scoreChanged ? `score-${score}` : 'score'}
+        className={['team-score', scheduled ? 'scheduled' : '', scoreChanged ? 'score-flash' : ''].filter(Boolean).join(' ')}
+      >
         {scheduled ? '' : score}
       </span>
     </div>
@@ -610,6 +617,47 @@ function ScoreCard({ game, onOpenSummary, onOpenTeam, isFavorite, onToggleFavori
           </div>
         )}
       </div>
+      <LiveLine game={game} />
+    </div>
+  )
+}
+
+/**
+ * Bottom line of a live card: down & distance for football (tagged in the
+ * red zone) and ESPN's win probability for the team that's favored. Both
+ * come with the scoreboard (game.situation), so no extra requests.
+ */
+function LiveLine({ game }) {
+  if (game.status !== 'live' && game.status !== 'halftime') return null
+  const s = game.situation || {}
+  const football = game.sport === 'nfl' || game.sport === 'college-football'
+  const down = football && game.status === 'live' ? s.downDistanceText || null : null
+  const prob = s.lastPlay?.probability
+  let win = null
+  if (Number.isFinite(prob?.homeWinPercentage) && Number.isFinite(prob?.awayWinPercentage)) {
+    const homeFavored = prob.homeWinPercentage >= prob.awayWinPercentage
+    const p = homeFavored ? prob.homeWinPercentage : prob.awayWinPercentage
+    win = {
+      team: (homeFavored ? game.homeAbbreviation : game.awayAbbreviation) || (homeFavored ? game.homeShortName : game.awayShortName),
+      text: p >= 0.995 ? '>99%' : `${Math.round(100 * p)}%`,
+      width: `${Math.round(100 * p)}%`,
+    }
+  }
+  if (!down && !win) return null
+  return (
+    <div className="card-live-line">
+      {down && (
+        <span className="card-down">
+          {s.isRedZone && <span className="red-zone-tag">Red zone</span>}
+          {down}
+        </span>
+      )}
+      {win && (
+        <span className="card-win-prob" title="ESPN win probability">
+          <span className="wp-label">{win.team} {win.text}</span>
+          <span className="wp-bar" aria-hidden="true"><span style={{ width: win.width }} /></span>
+        </span>
+      )}
     </div>
   )
 }

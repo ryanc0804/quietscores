@@ -1446,6 +1446,78 @@ body.pwa-mode {
     box-shadow: none;
 }
 
+/* A live score that just changed: a quick pop and green glow. */
+.team-score.score-flash {
+    border-radius: 6px;
+    animation: score-flash 1.8s ease-out;
+}
+@keyframes score-flash {
+    0% { transform: scale(1.25); color: #3fb950; background: rgba(63, 185, 80, 0.22); }
+    25% { transform: scale(1); }
+    100% { background: transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .team-score.score-flash { animation: score-flash-calm 1.8s ease-out; }
+    @keyframes score-flash-calm {
+        0% { color: #3fb950; background: rgba(63, 185, 80, 0.22); }
+        100% { background: transparent; }
+    }
+}
+
+/* Live card footer: down & distance and win probability (LiveLine). */
+.card-live-line {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(var(--overlay), 0.06);
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+}
+.card-down {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.red-zone-tag {
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(220, 53, 69, 0.15);
+    color: #e5484d;
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+}
+.card-win-prob {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+.wp-bar {
+    width: 36px;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(var(--overlay), 0.12);
+    overflow: hidden;
+}
+.wp-bar > span {
+    display: block;
+    height: 100%;
+    border-radius: 2px;
+    background: var(--text-secondary);
+    transition: width 0.6s ease;
+}
+
 /* Possession/At-bat: a small ball after the team name (PossessionIcon). */
 .possession-icon {
     display: inline-flex;

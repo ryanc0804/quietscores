@@ -225,24 +225,6 @@ function transformEvent(event, sportKey) {
   if (!possessionTeam && competition?.lastPlay?.possessionTeam) {
     possessionTeam = competition.lastPlay.possessionTeam
   }
-  
-  // Debug: Log possession data for first live game (after extraction)
-  if (normalizedStatus === 'live' && !window._loggedPossessionDebug) {
-    window._loggedPossessionDebug = true
-    console.log('=== POSSESSION DEBUG ===')
-    console.log('Sport:', sportKey)
-    console.log('Situation:', situation)
-    console.log('Situation possession:', situation?.possession)
-    console.log('Situation lastPlay:', situation?.lastPlay)
-    console.log('Situation lastPlay team:', situation?.lastPlay?.team)
-    console.log('Situation lastPlay team ID:', situation?.lastPlay?.team?.id, typeof situation?.lastPlay?.team?.id)
-    console.log('Competition lastPlay:', competition?.lastPlay)
-    console.log('Away team ID:', away.team?.id, typeof away.team?.id)
-    console.log('Home team ID:', home.team?.id, typeof home.team?.id)
-    console.log('Extracted possessionTeam:', possessionTeam, typeof possessionTeam)
-    console.log('Will match away?', possessionTeam && String(possessionTeam) === String(away.team?.id))
-    console.log('Will match home?', possessionTeam && String(possessionTeam) === String(home.team?.id))
-  }
 
   // For baseball, determine at-bat team and extract MLB-specific data
   let atBatTeam = null
