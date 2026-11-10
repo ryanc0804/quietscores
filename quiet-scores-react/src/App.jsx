@@ -2016,10 +2016,22 @@ function App() {
     return scores.find((g) => g.id === selectedGame.id && g.sport === selectedGame.sport) ?? selectedGame
   }, [scores, selectedGame])
 
+  // A view opened from search waits here while history rewinds to the list
+  // (see openFromSearch).
+  const pendingFreshView = useRef(null)
+
   // Browser/phone back button pops detail views.
   useEffect(() => {
     const onPop = (e) => {
       const depth = e.state?.qsDepth || 0
+      const fresh = pendingFreshView.current
+      if (fresh && !depth) {
+        pendingFreshView.current = null
+        setViewStack([fresh])
+        try { window.history.pushState({ qsDepth: 1 }, '') } catch { /* ignore */ }
+        window.scrollTo(0, 0)
+        return
+      }
       setViewStack((stack) => stack.slice(0, depth))
       if (!depth) requestAnimationFrame(() => window.scrollTo(0, listScrollRef.current))
     }
@@ -2139,6 +2151,25 @@ function App() {
   const handleOpenTeamPage = (teamInfo) => pushView('team', teamInfo)
   const handleOpenPlayer = (playerRef) => pushView('player', playerRef)
   const handleOpenLeaderboard = (view) => pushView('leaders', view)
+  // Search is a fresh start, not a step deeper: whatever it opens replaces the
+  // pages already open, so Back goes to the scores list instead of walking
+  // back through them. History is rewound first and the view pushed once it
+  // lands (onPop), so the browser back button agrees.
+  const openFromSearch = (type, value) => {
+    if (!viewStack.length) {
+      pushView(type, value)
+      return
+    }
+    const depth = window.history.state?.qsDepth || 0
+    if (!depth) {
+      setViewStack([{ type, value }])
+      try { window.history.pushState({ qsDepth: 1 }, '') } catch { /* ignore */ }
+      window.scrollTo(0, 0)
+      return
+    }
+    pendingFreshView.current = { type, value }
+    window.history.go(-depth)
+  }
   // Switching stat tabs swaps the board in place, so Back still returns to the player.
   const handleChangeLeaderboard = (board) =>
     setViewStack((stack) => {
@@ -2484,8 +2515,8 @@ function App() {
         <SearchPalette
           origin={searchOrigin}
           onClose={() => setSearchOpen(false)}
-          onOpenTeam={handleOpenTeamPage}
-          onOpenPlayer={handleOpenPlayer}
+          onOpenTeam={(team) => openFromSearch('team', team)}
+          onOpenPlayer={(player) => openFromSearch('player', player)}
           favorites={favorites}
         />
       )}
