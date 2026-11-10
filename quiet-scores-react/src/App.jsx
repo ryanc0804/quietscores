@@ -2020,7 +2020,8 @@ function App() {
     const followed = new Set(favorites.map((f) => barSport(f.sport)))
     return SPORT_BUTTONS.map((button, index) => {
       const games = scores.filter((g) => barSport(g.sport) === button.value)
-      return { ...button, index, live: games.some(isLive), hasGames: games.length > 0, followed: followed.has(button.value) }
+      const liveGames = games.filter(isLive).length
+      return { ...button, index, liveGames, live: liveGames > 0, hasGames: games.length > 0, followed: followed.has(button.value) }
     }).sort(
       (a, b) =>
         Number(b.live) - Number(a.live) ||
@@ -2513,8 +2514,11 @@ function App() {
                   .join(' ')}
                 data-sport={button.value}
                 onClick={() => handleSportClick(button.value)}
+                aria-label={button.liveGames ? `${button.label}, ${button.liveGames} live` : undefined}
+                title={button.liveGames ? `${button.liveGames} live ${button.liveGames === 1 ? 'game' : 'games'}` : undefined}
               >
                 {button.label}
+                {button.liveGames > 0 && <span className="sport-live-count" aria-hidden="true">{button.liveGames}</span>}
               </button>
             ))}
           </div>

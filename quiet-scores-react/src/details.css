@@ -108,6 +108,14 @@ html, body { background: var(--bg-primary); color: var(--text-primary); }
 }
 .sport-filters::-webkit-scrollbar { display: none; }
 .sport-btn, .live-games-indicator { flex: 0 0 auto; }
+/* Live games in a sport, after its name ("NBA 7"). */
+.sport-live-count {
+    margin-left: 5px;
+    font-size: 0.85em;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.6;
+}
 
 :focus-visible {
     outline: 2px solid var(--accent-primary);
