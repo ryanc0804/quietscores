@@ -623,23 +623,6 @@ async function fetchTeamConferences(sportKey, { signal } = {}) {
 
     const data = await response.json()
     
-    // Debug: log the structure to see what we get
-    if (!window._loggedTeamsDebug) {
-      window._loggedTeamsDebug = true
-      console.log('=== TEAMS ENDPOINT DEBUG ===')
-      console.log('Full response structure:', Object.keys(data))
-      console.log('Sports:', data?.sports)
-      console.log('Sample team structure:', data?.sports?.[0]?.leagues?.[0]?.teams?.[0] || data?.teams?.[0])
-      if (data?.sports?.[0]?.leagues?.[0]?.teams?.[0]) {
-        const sampleTeam = data.sports[0].leagues[0].teams[0]
-        console.log('Sample team keys:', Object.keys(sampleTeam))
-        console.log('Sample team.team keys:', sampleTeam.team ? Object.keys(sampleTeam.team) : 'no team')
-        console.log('Sample team.team.group:', sampleTeam.team?.group)
-        console.log('Sample team.team.conference:', sampleTeam.team?.conference)
-        console.log('Full sample team:', JSON.stringify(sampleTeam, null, 2).substring(0, 2000))
-      }
-    }
-    
     const teams = data?.sports?.[0]?.leagues?.[0]?.teams || data?.teams || []
     
     const conferenceMap = {}
@@ -662,7 +645,6 @@ async function fetchTeamConferences(sportKey, { signal } = {}) {
       }
     })
 
-    console.log('Conference map created:', Object.keys(conferenceMap).length, 'teams mapped')
     conferenceCache.set(sportKey, conferenceMap)
     return conferenceMap
   } catch (error) {
@@ -692,15 +674,18 @@ const ESPN_STANDINGS_APIS = {
 // Cache for standings data
 const standingsCache = new Map()
 
-async function fetchStandings(sportKey, { signal } = {}) {
-  const endpoint = ESPN_STANDINGS_APIS[sportKey]
-  if (!endpoint) {
+// `divisions: true` asks for division groups (AFC East, Atlantic…) rather
+// than whole conferences, for the game page's short standings.
+async function fetchStandings(sportKey, { signal, divisions = false } = {}) {
+  const base = ESPN_STANDINGS_APIS[sportKey]
+  if (!base) {
     console.warn(`No standings endpoint for sport: ${sportKey}`)
     return null
   }
+  const endpoint = divisions ? `${base}?level=3` : base
 
   // Check cache first (cache for 5 minutes)
-  const cacheKey = sportKey
+  const cacheKey = divisions ? `${sportKey}:divisions` : sportKey
   const cached = standingsCache.get(cacheKey)
   if (cached && Date.now() - cached.timestamp < 5 * 60 * 1000) {
     return cached.data
@@ -716,16 +701,6 @@ async function fetchStandings(sportKey, { signal } = {}) {
     const data = await response.json()
     
     // Debug: log the structure
-    console.log('=== STANDINGS API RESPONSE ===')
-    console.log('Sport:', sportKey)
-    console.log('Top-level keys:', Object.keys(data))
-    console.log('Has children?', !!data.children, 'count:', data.children?.length)
-    if (data.children?.[0]) {
-      console.log('First child keys:', Object.keys(data.children[0]))
-      console.log('First child name:', data.children[0].name)
-      console.log('First child has children?', !!data.children[0].children)
-      console.log('First child has standings?', !!data.children[0].standings)
-    }
     
     // Cache the result
     standingsCache.set(cacheKey, { data, timestamp: Date.now() })
@@ -752,29 +727,14 @@ function teamMatches(entry, teamIdentifiers) {
 
 // Helper to process a standings group - adds to matchingGroups if it has matching teams,
 // or to allGroups if we're collecting all groups
-function processStandingsGroup(group, teamIdentifiers, matchingGroups, allGroups, logDetails = false) {
+function processStandingsGroup(group, teamIdentifiers, matchingGroups, allGroups) {
   const entries = group.standings?.entries || []
   
   if (entries.length === 0) {
-    if (logDetails) console.log('    No entries in group:', group.name)
     return
   }
   
   // Log first entry structure to debug
-  if (logDetails && entries[0]) {
-    console.log('    First entry structure:', {
-      teamId: entries[0].team?.id,
-      teamName: entries[0].team?.displayName || entries[0].team?.name,
-      teamAbbr: entries[0].team?.abbreviation,
-      entryKeys: Object.keys(entries[0])
-    })
-    console.log('    Sample teams in group:', entries.slice(0, 4).map(e => ({ 
-      id: e.team?.id, 
-      name: e.team?.displayName,
-      abbr: e.team?.abbreviation 
-    })))
-    console.log('    Looking for:', teamIdentifiers)
-  }
   
   const sortedEntries = [...entries].sort((a, b) => {
     const aWins = a.stats?.find(s => s.name === 'wins')?.value || 0
@@ -793,9 +753,6 @@ function processStandingsGroup(group, teamIdentifiers, matchingGroups, allGroups
   // Check if any team matches
   const hasMatchingTeam = entries.some(entry => teamMatches(entry, teamIdentifiers))
   
-  if (logDetails) {
-    console.log('    Has matching team:', hasMatchingTeam)
-  }
   
   if (hasMatchingTeam) {
     matchingGroups.push(groupData)
@@ -811,12 +768,8 @@ function processStandingsGroup(group, teamIdentifiers, matchingGroups, allGroups
 // If no matches found, returns all divisions as fallback
 // teamInfo: { ids: string[], names: string[], abbrs: string[] }
 function filterStandingsByTeams(standingsData, teamInfo) {
-  console.log('=== FILTER STANDINGS ===')
-  console.log('Team info to find:', teamInfo)
-  console.log('standingsData keys:', standingsData ? Object.keys(standingsData) : 'null')
   
   if (!standingsData) {
-    console.log('No standings data')
     return null
   }
   
@@ -834,45 +787,30 @@ function filterStandingsByTeams(standingsData, teamInfo) {
   
   // Structure 1: data.children (conferences) -> children (divisions) -> standings.entries
   if (standingsData.children?.length > 0) {
-    console.log('Using children structure, count:', standingsData.children.length)
-    
-    let loggedOne = false
-    standingsData.children.forEach((conference, cIdx) => {
-      console.log(`Conference ${cIdx}:`, conference.name, 'has children?', !!conference.children)
-      
+    standingsData.children.forEach((conference) => {
       if (conference.children?.length > 0) {
         // Has divisions under conferences (NFL, NBA structure)
-        conference.children.forEach((division, dIdx) => {
-          console.log(`  Division ${dIdx}:`, division.name, 'entries:', division.standings?.entries?.length || 0)
-          // Log details for first division only to see structure
-          const shouldLog = !loggedOne
-          if (shouldLog) loggedOne = true
-          processStandingsGroup(division, teamIdentifiers, matchingGroups, allGroups, shouldLog)
+        conference.children.forEach((division) => {
+          processStandingsGroup(division, teamIdentifiers, matchingGroups, allGroups)
         })
       } else {
         // Conference level standings (no division subdivision)
-        console.log(`  Conference-level standings, entries:`, conference.standings?.entries?.length || 0)
-        const shouldLog = !loggedOne
-        if (shouldLog) loggedOne = true
-        processStandingsGroup(conference, teamIdentifiers, matchingGroups, allGroups, shouldLog)
+        processStandingsGroup(conference, teamIdentifiers, matchingGroups, allGroups)
       }
     })
   }
   // Structure 2: data.standings.entries directly
   else if (standingsData.standings?.entries?.length > 0) {
-    console.log('Using direct standings.entries structure')
-    processStandingsGroup({ name: 'Standings', standings: standingsData.standings }, teamIdentifiers, matchingGroups, allGroups, true)
+    processStandingsGroup({ name: 'Standings', standings: standingsData.standings }, teamIdentifiers, matchingGroups, allGroups)
   }
   // Structure 3: data.groups array
   else if (standingsData.groups?.length > 0) {
-    console.log('Using groups structure, count:', standingsData.groups.length)
     standingsData.groups.forEach(group => {
       processStandingsGroup(group, teamIdentifiers, matchingGroups, allGroups)
     })
   }
   // Structure 4: Array at top level
   else if (Array.isArray(standingsData) && standingsData.length > 0) {
-    console.log('Using array structure, count:', standingsData.length)
     standingsData.forEach(group => {
       if (group.children) {
         group.children.forEach(division => {
@@ -883,19 +821,11 @@ function filterStandingsByTeams(standingsData, teamInfo) {
       }
     })
   }
-  else {
-    console.log('Unknown standings structure, trying to log full object')
-    console.log(JSON.stringify(standingsData, null, 2).substring(0, 3000))
-  }
 
-  console.log('Matching groups found:', matchingGroups.length)
-  console.log('All groups found:', allGroups.length)
-  
   // Return matching groups if found, otherwise return all groups as fallback
   if (matchingGroups.length > 0) {
     return { groups: matchingGroups, teamIdentifiers }
   } else if (allGroups.length > 0) {
-    console.log('No matches - returning all groups as fallback')
     // Just return first 2 divisions as a sample since we couldn't find specific matches
     return { groups: allGroups.slice(0, 2), teamIdentifiers, isAllGroups: true }
   }

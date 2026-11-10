@@ -40,14 +40,20 @@ export function pathFor(view) {
   return null
 }
 
+/** A league's Standings or Leaders view: /nfl/standings, /nba/leaders. */
+export const leaguePath = (sport, view) => (view === 'scores' ? '/' : `/${sport}/${view}`)
+
 /**
- * The page a URL points at: { type: 'player' | 'team', value } or
- * { type: 'game', sport, id, date }, or null for the scores list.
+ * The page a URL points at: { type: 'player' | 'team', value },
+ * { type: 'game', sport, id, date }, { type: 'league', sport, view }, or
+ * null for the scores list.
  */
 export function routeFrom(location) {
   const parts = location.pathname.split('/').filter(Boolean).map(decodeURIComponent)
   const [sport, type, id] = parts
-  if (!SPORTS.has(sport) || !id) return null
+  if (!SPORTS.has(sport)) return null
+  if (parts.length === 2 && (type === 'standings' || type === 'leaders')) return { type: 'league', sport, view: type }
+  if (!id) return null
   if (type === 'player') return { type, value: { sport, athleteId: id } }
   if (type === 'team') return { type, value: { sport, teamId: id } }
   if (type === 'game') {

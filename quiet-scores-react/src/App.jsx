@@ -48,7 +48,12 @@ const STAT_HELP = {
   earlyPassRate: 'Share of 1st and 2nd down plays that were passes.',
 }
 import { fetchGameSummary, fetchStandings, filterStandingsByTeams, fetchUFCFightStats } from './lib/espnApi'
-import { pathFor, routeFrom, titleFor } from './lib/routes'
+import { leaguePath, pathFor, routeFrom, titleFor } from './lib/routes'
+import { LEAGUE_SPORTS } from './lib/standings'
+import { LeagueStandings } from './pages/LeagueStandings'
+import { LeagueLeaders } from './pages/LeagueLeaders'
+import { useHeaderFit } from './hooks/useHeaderFit'
+import { SPORT_LABEL } from './lib/players'
 
 const SUMMARY_REFRESH_MS = 15_000
 
@@ -170,9 +175,11 @@ function getSportDisplayName(sport) {
   }
 }
 
-function abbreviateNetwork(network) {
+function abbreviateNetwork(rawNetwork) {
+  // ESPN sometimes joins channels ("ALT2/KTVD"); show the first one.
+  const network = String(rawNetwork || '').split(/[/|,]/).map((s) => s.trim()).find(Boolean) || ''
   if (!network) return ''
-  
+
   const networkLower = network.toLowerCase()
   
   // Common network abbreviations
@@ -579,11 +586,18 @@ function PossessionIcon({ sport }) {
   )
 }
 
-function ScoreCard({ game, onOpenSummary, onOpenTeam, isFavorite, onToggleFavorite, highlight }) {
+function ScoreCard({ game, onOpenSummary, onOpenTeam, isFavorite, onToggleFavorite, highlight, showSport = true }) {
   const badge = getStatusBadge(game)
   const statusBadge = badge ? (
     <span className={badge.className}>{badge.text}</span>
   ) : null
+  // Header: league (only when the list mixes them), conference for college
+  // matchups within one, and the network.
+  const headerParts = [
+    showSport && getSportDisplayName(game.sport),
+    game.homeConference && game.homeConference === game.awayConference && game.homeConference,
+    game.broadcastChannel && abbreviateNetwork(game.broadcastChannel),
+  ].filter(Boolean)
 
   return (
     <div
@@ -601,11 +615,7 @@ function ScoreCard({ game, onOpenSummary, onOpenTeam, isFavorite, onToggleFavori
       aria-label={`${game.awayTeam} at ${game.homeTeam}`}
     >
       <div className="game-header">
-        <span className="sport-type">
-          {getSportDisplayName(game.sport)}
-          {game.homeConference && game.homeConference === game.awayConference ? ` • ${game.homeConference}` : ''}
-          {game.broadcastChannel ? ` • ${abbreviateNetwork(game.broadcastChannel)}` : ''}
-        </span>
+        <span className="sport-type">{headerParts.join(' • ')}</span>
         {statusBadge}
       </div>
       <div className="game-content">
@@ -853,7 +863,7 @@ function GameSummary({ game, onBack, onOpenTeam }) {
       setStandingsError(null)
 
       try {
-        const allStandings = await fetchStandings(game.sport)
+        const allStandings = await fetchStandings(game.sport, { divisions: true })
         
         if (!cancelled) {
           if (allStandings) {
@@ -2097,13 +2107,17 @@ function App() {
   const [currentDate, setCurrentDate] = useState(() => new Date(INITIAL_GAME_DATE || today))
   // The sport the visitor picked; null until they pick one (or the first
   // scores load picks the top sport in the bar for them).
-  const [sportPick, setSportPick] = useState(null)
+  const [sportPick, setSportPick] = useState(() => (INITIAL_ROUTE?.type === 'league' ? INITIAL_ROUTE.sport : null))
+  // Scores, or the league's Standings / Leaders (for the sports that have them).
+  const [leagueView, setLeagueView] = useState(() => (INITIAL_ROUTE?.type === 'league' ? INITIAL_ROUTE.view : 'scores'))
   // Navigation: a stack of detail views over the scores list, mirrored in
   // browser history (and the URL, see lib/routes) so the phone/browser back
   // button walks back through it.
   // Each entry is { type: 'game' | 'team' | 'player' | 'leaders', value }.
   const [viewStack, setViewStack] = useState(() =>
-    INITIAL_ROUTE && INITIAL_ROUTE.type !== 'game' ? [{ type: INITIAL_ROUTE.type, value: INITIAL_ROUTE.value }] : [],
+    INITIAL_ROUTE && INITIAL_ROUTE.type !== 'game' && INITIAL_ROUTE.type !== 'league'
+      ? [{ type: INITIAL_ROUTE.type, value: INITIAL_ROUTE.value }]
+      : [],
   )
   // A shared game link waits here until its day's scoreboard has loaded.
   const [pendingGame, setPendingGame] = useState(() => (INITIAL_ROUTE?.type === 'game' ? INITIAL_ROUTE : null))
@@ -2173,7 +2187,7 @@ function App() {
   // so Back goes to the list rather than off the site. (Once, even under
   // StrictMode's double effects.)
   useEffect(() => {
-    if (!INITIAL_ROUTE || historySeeded) return
+    if (!INITIAL_ROUTE || INITIAL_ROUTE.type === 'league' || historySeeded) return
     historySeeded = true
     const url = window.location.pathname + window.location.search
     try {
@@ -2182,10 +2196,26 @@ function App() {
     } catch { /* ignore */ }
   }, [])
 
+  // Standings and Leaders exist for the main leagues; elsewhere it's scores.
+  const activeLeagueView = LEAGUE_SPORTS.has(selectedSport) ? leagueView : 'scores'
+
   // Browser tab title follows the page (player/team pages refine it once loaded).
   useEffect(() => {
-    document.title = titleFor(topView)
-  }, [topView])
+    document.title =
+      !topView && activeLeagueView !== 'scores'
+        ? `${SPORT_LABEL[selectedSport]} ${activeLeagueView === 'standings' ? 'Standings' : 'Leaders'} | Scores n Stats`
+        : titleFor(topView)
+  }, [topView, activeLeagueView, selectedSport])
+
+  // On the list, the URL names the view: / for scores, /nfl/standings,
+  // /nba/leaders. (Not while a shared game link is still resolving.)
+  useEffect(() => {
+    if (topView || pendingGame) return
+    const url = leaguePath(selectedSport, activeLeagueView)
+    if (window.location.pathname + window.location.search !== url) {
+      try { window.history.replaceState(window.history.state, '', url) } catch { /* ignore */ }
+    }
+  }, [topView, pendingGame, selectedSport, activeLeagueView])
 
   // Browser/phone back button pops detail views.
   useEffect(() => {
@@ -2364,6 +2394,7 @@ function App() {
 
   const handleBackToScores = () => {
     closeAllViews()
+    setLeagueView('scores')
     setSportPick(null) // back to the top sport in the bar
     setShowLiveOnly(false)
     setWeekOffset(0)
@@ -2449,6 +2480,43 @@ function App() {
   const singleSport = selectedSport !== 'favorites' && !showLiveOnly
   const sportLabel = SPORT_BUTTONS.find((b) => b.value === selectedSport)?.label || selectedSport
 
+  // Header buttons for the selected league's Standings and Leaders. From any
+  // page they open that view over the list; pressing the active one again
+  // goes back to scores.
+  const openLeagueView = (view) => {
+    if (viewStack.length) closeAllViews()
+    setLeagueView(!viewStack.length && activeLeagueView === view ? 'scores' : view)
+    window.scrollTo(0, 0)
+  }
+  const headerRef = useRef(null)
+  useHeaderFit(headerRef)
+
+  const leagueButtons = LEAGUE_SPORTS.has(selectedSport) ? (
+    <nav className="header-league" aria-label={`${SPORT_LABEL[selectedSport]} standings and leaders`}>
+      {[
+        ['standings', 'Standings', <path key="s" d="M4 20V10M10 20V4M16 20v-7M22 20H2" />],
+        ['leaders', 'Leaders', <path key="l" d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4zM7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4" />],
+      ].map(([view, label, icon]) => {
+        const active = !viewStack.length && activeLeagueView === view
+        return (
+          <button
+            key={view}
+            type="button"
+            className={`header-league-btn ${active ? 'active' : ''}`}
+            aria-pressed={active}
+            title={`${SPORT_LABEL[selectedSport]} ${label.toLowerCase()}`}
+            onClick={() => openLeagueView(view)}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{icon}</svg>
+            <span>{label}</span>
+          </button>
+        )
+      })}
+    </nav>
+  ) : null
+
+  // The sport bar already names the sport, so cards only say it when the
+  // list mixes leagues (Favorites, Soccer).
   const renderCard = (game, highlight = false) => (
     <ScoreCard
       key={`${game.sport}-${game.id ?? `${game.awayTeam}-${game.homeTeam}`}`}
@@ -2456,6 +2524,7 @@ function App() {
       onOpenSummary={handleOpenGameSummary}
       onOpenTeam={handleOpenTeamPage}
       highlight={highlight}
+      showSport={selectedSport === 'favorites' || selectedSport === 'soccer'}
     />
   )
 
@@ -2505,6 +2574,24 @@ function App() {
     <GameSummary key={`${activeGame.sport}-${activeGame.id}`} game={activeGame} onBack={handleBack} onOpenTeam={handleOpenTeamPage} />
   ) : (
     <>
+      {activeLeagueView !== 'scores' ? (
+        <div className="league-page">
+          <div className="league-head">
+            <h2>{SPORT_LABEL[selectedSport]} {activeLeagueView === 'standings' ? 'Standings' : 'Leaders'}</h2>
+          </div>
+          {activeLeagueView === 'standings' ? (
+          <LeagueStandings
+            sport={selectedSport}
+            onOpenTeam={handleOpenTeamPage}
+            conference={conferenceBySport[selectedSport]}
+            onConference={setSelectedConference}
+          />
+          ) : (
+          <LeagueLeaders sport={selectedSport} onOpenPlayer={handleOpenPlayer} onOpenLeaderboard={handleOpenLeaderboard} />
+          )}
+        </div>
+      ) : (
+      <>
       <div className="date-navigation">
         <div className="week-display">
           <div className="week-label" id="weekLabel">
@@ -2628,12 +2715,14 @@ function App() {
           </>
         )}
       </div>
+      </>
+      )}
     </>
   )
 
   return (
     <div className="container">
-      <div className="site-header">
+      <div className="site-header" ref={headerRef}>
         <div className="header-left">
           <div className="header-logo-group" onClick={handleBackToScores} style={{ cursor: 'pointer' }}>
             <img className="header-logo" src="/logo-header.png" alt="" width="32" height="32" />
@@ -2668,9 +2757,13 @@ function App() {
               </button>
             ))}
           </div>
+          {/* Phones: Standings/Leaders sit at the end of the sport bar row,
+              where the header row has no room for them. */}
+          {leagueButtons && <div className="header-league-mobile">{leagueButtons}</div>}
         </div>
 
         <div className="header-right">
+          {leagueButtons && <div className="header-league-desktop">{leagueButtons}</div>}
           <SearchButton
             onOpen={(rect) => {
               setSearchOrigin(rect)
