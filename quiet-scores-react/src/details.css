@@ -108,6 +108,14 @@ html, body { background: var(--bg-primary); color: var(--text-primary); }
 }
 .sport-filters::-webkit-scrollbar { display: none; }
 .sport-btn, .live-games-indicator { flex: 0 0 auto; }
+/* Live games in a sport, after its name ("NBA 7"). */
+.sport-live-count {
+    margin-left: 5px;
+    font-size: 0.85em;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.6;
+}
 
 :focus-visible {
     outline: 2px solid var(--accent-primary);
@@ -263,6 +271,66 @@ html, body { background: var(--bg-primary); color: var(--text-primary); }
     text-transform: uppercase;
     color: var(--text-secondary);
 }
+
+/* Team stats rows (sidebar + Team Stats tab) */
+.ts-teams {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: var(--text-secondary);
+}
+.ts-teams > span { display: inline-flex; align-items: center; gap: 6px; }
+.ts-logo { display: inline-flex; }
+.ts-logo img { width: 100%; height: 100%; object-fit: contain; }
+.ts-list { display: flex; flex-direction: column; gap: 13px; }
+.ts-values {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 5px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-secondary);
+}
+.ts-values > .lead { font-weight: 800; color: var(--text-primary); }
+.ts-label { font-size: 0.72rem; color: var(--text-muted); text-align: center; }
+.ts-label[title] { cursor: help; text-decoration: underline dotted rgba(var(--overlay), 0.3); text-underline-offset: 3px; }
+.ts-bar { display: flex; gap: 2px; height: 4px; border-radius: 2px; overflow: hidden; }
+.ts-bar > span { height: 100%; transition: width 0.6s ease; }
+.ts-bar > span:last-child { flex: 1; }
+.ts-more {
+    margin-top: 14px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--accent-primary);
+    font: inherit;
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+.ts-tab {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 18px 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-primary);
+    border-radius: 12px;
+}
+.ts-group {
+    margin: 10px 0 -2px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+.ts-group:first-child { margin-top: 0; }
+.ts-note { margin: 16px 0 0; font-size: 0.7rem; line-height: 1.45; color: var(--text-muted); }
 
 /* Tabs */
 .gd-tabs {

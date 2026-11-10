@@ -57,6 +57,12 @@ const ESPN_SUMMARY_APIS = {
   ligue1: 'https://site.api.espn.com/apis/site/v2/sports/soccer/fra.1/summary',
 }
 
+/** A team's [main, alternate] colors as CSS hex, from ESPN's "0b2265" form. */
+function teamColors(team) {
+  const hex = (c) => (/^[0-9a-f]{6}$/i.test(c || '') ? `#${c}` : null)
+  return [hex(team?.color), hex(team?.alternateColor)]
+}
+
 function formatDateParam(date) {
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -225,24 +231,6 @@ function transformEvent(event, sportKey) {
   if (!possessionTeam && competition?.lastPlay?.possessionTeam) {
     possessionTeam = competition.lastPlay.possessionTeam
   }
-  
-  // Debug: Log possession data for first live game (after extraction)
-  if (normalizedStatus === 'live' && !window._loggedPossessionDebug) {
-    window._loggedPossessionDebug = true
-    console.log('=== POSSESSION DEBUG ===')
-    console.log('Sport:', sportKey)
-    console.log('Situation:', situation)
-    console.log('Situation possession:', situation?.possession)
-    console.log('Situation lastPlay:', situation?.lastPlay)
-    console.log('Situation lastPlay team:', situation?.lastPlay?.team)
-    console.log('Situation lastPlay team ID:', situation?.lastPlay?.team?.id, typeof situation?.lastPlay?.team?.id)
-    console.log('Competition lastPlay:', competition?.lastPlay)
-    console.log('Away team ID:', away.team?.id, typeof away.team?.id)
-    console.log('Home team ID:', home.team?.id, typeof home.team?.id)
-    console.log('Extracted possessionTeam:', possessionTeam, typeof possessionTeam)
-    console.log('Will match away?', possessionTeam && String(possessionTeam) === String(away.team?.id))
-    console.log('Will match home?', possessionTeam && String(possessionTeam) === String(home.team?.id))
-  }
 
   // For baseball, determine at-bat team and extract MLB-specific data
   let atBatTeam = null
@@ -355,6 +343,8 @@ function transformEvent(event, sportKey) {
     possessionTeam: possessionTeam ? String(possessionTeam) : null,
     awayTeamId: away.team?.id ? String(away.team.id) : null,
     homeTeamId: home.team?.id ? String(home.team.id) : null,
+    awayColors: teamColors(away.team),
+    homeColors: teamColors(home.team),
     atBatTeam,
     situation,
     // MLB-specific fields

@@ -1446,17 +1446,86 @@ body.pwa-mode {
     box-shadow: none;
 }
 
-/* Possession/At-bat highlighting */
-.team.possession .team-name,
-.team.at-bat .team-name {
-    color: rgba(var(--overlay), 0.9);
-    font-weight: 500;
+/* A live score that just changed: a quick pop and green glow. */
+.team-score.score-flash {
+    border-radius: 6px;
+    animation: score-flash 1.8s ease-out;
+}
+@keyframes score-flash {
+    0% { transform: scale(1.25); color: #3fb950; background: rgba(63, 185, 80, 0.22); }
+    25% { transform: scale(1); }
+    100% { background: transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .team-score.score-flash { animation: score-flash-calm 1.8s ease-out; }
+    @keyframes score-flash-calm {
+        0% { color: #3fb950; background: rgba(63, 185, 80, 0.22); }
+        100% { background: transparent; }
+    }
 }
 
-.team.possession,
-.team.at-bat {
-    border-left: 2px solid rgba(0, 123, 255, 0.4);
-    padding-left: 6px;
+/* Live card bottom row: down & distance, win probability (LiveLine). */
+.card-live-line {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+}
+.card-down {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.card-win-prob {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+    white-space: nowrap;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+.wp-bar {
+    display: flex;
+    gap: 1px;
+    width: 40px;
+    height: 4px;
+    border-radius: 2px;
+    overflow: hidden;
+}
+.wp-bar > span {
+    height: 100%;
+    background: var(--text-muted);
+    transition: width 0.6s ease;
+}
+.wp-bar > span:last-child {
+    flex: 1;
+    background: rgba(var(--overlay), 0.3);
+}
+.red-zone-tag {
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(220, 53, 69, 0.15);
+    color: #e5484d;
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+}
+
+/* Possession/At-bat: a small ball after the team name (PossessionIcon). */
+.possession-icon {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 6px;
+    vertical-align: -1px;
+    color: var(--text-muted);
 }
 
 .team.possession .team-score,

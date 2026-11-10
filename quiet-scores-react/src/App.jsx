@@ -28,15 +28,27 @@ import {
 import {
   buildLinescore,
   getAllPlays,
+  getFootballEfficiency,
   getFootballSituation,
   getGameInfo,
   getInjuries,
   getScoringPlays,
   getSeasonSeries,
+  getTeamStats,
   getWinProbabilitySeries,
   isFootball,
 } from './lib/gameDetails'
+
+// Hover text for team stats that need explaining.
+const STAT_HELP = {
+  successRate: 'A play is a success if it gains 40% of the yards needed on 1st down, 60% on 2nd, or all of them on 3rd and 4th.',
+  passSuccessRate: 'Success rate on dropbacks (passes, sacks, interceptions).',
+  rushSuccessRate: 'Success rate on designed runs and scrambles.',
+  explosivePlays: 'Explosive plays are runs of 10+ yards and passes of 20+.',
+  earlyPassRate: 'Share of 1st and 2nd down plays that were passes.',
+}
 import { fetchGameSummary, fetchStandings, filterStandingsByTeams, fetchUFCFightStats } from './lib/espnApi'
+import { pathFor, routeFrom, titleFor } from './lib/routes'
 
 const SUMMARY_REFRESH_MS = 15_000
 
@@ -433,6 +445,10 @@ function TeamRow({ game, side, onOpenTeam, isFavorite, onToggleFavorite }) {
   const logoUrl = isAway ? game.awayLogo : game.homeLogo
   const displayName = teamShortName || teamName
   const fallbackText = getFallbackText(teamName, teamShortName, teamAbbreviation)
+  // Flash a live score when it changes (not on first render). Keying the
+  // score by its value restarts the animation on every new score.
+  const [firstScore] = useState(score)
+  const scoreChanged = (game.status === 'live' || game.status === 'halftime') && String(score) !== String(firstScore)
 
   // Check for possession/at-bat highlighting
   let hasPossession = false
@@ -522,6 +538,7 @@ function TeamRow({ game, side, onOpenTeam, isFavorite, onToggleFavorite }) {
         <div className="team-details">
           <span className="team-name">
             {displayName}
+            {hasPossession && <PossessionIcon sport={game.sport} />}
             {scheduled && teamSpread !== null && (
               <span className="team-spread"> ({formatSpread(teamSpread)})</span>
             )}
@@ -532,10 +549,33 @@ function TeamRow({ game, side, onOpenTeam, isFavorite, onToggleFavorite }) {
           {record ? <span className="team-record">{record}</span> : null}
         </div>
       </div>
-      <span className={['team-score', scheduled ? 'scheduled' : ''].join(' ')}>
+      <span
+        key={scoreChanged ? `score-${score}` : 'score'}
+        className={['team-score', scheduled ? 'scheduled' : '', scoreChanged ? 'score-flash' : ''].filter(Boolean).join(' ')}
+      >
         {scheduled ? '' : score}
       </span>
     </div>
+  )
+}
+
+/** Small ball after the name of the team with the ball (football) or at bat (MLB). */
+function PossessionIcon({ sport }) {
+  const label = sport === 'mlb' ? 'At bat' : 'Has the ball'
+  return (
+    <span className={`possession-icon ${sport === 'mlb' ? 'baseball' : 'football'}`} role="img" aria-label={label} title={label}>
+      {sport === 'mlb' ? (
+        <svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true">
+          <circle cx="8" cy="8" r="6.5" fill="#f4f1ea" stroke="currentColor" strokeWidth="1" />
+          <path d="M4.2 3.2c1.4 1.3 1.4 8.3 0 9.6M11.8 3.2c-1.4 1.3-1.4 8.3 0 9.6" fill="none" stroke="#d6453d" strokeWidth="1" />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 20 12" width="15" height="9" aria-hidden="true">
+          <path d="M10 .8C4.6.8 1 4.2.6 6c.4 1.8 4 5.2 9.4 5.2s9-3.4 9.4-5.2C19 4.2 15.4.8 10 .8z" fill="#9a5b2e" />
+          <path d="M6.5 6h7M8 4.6v2.8M10 4.6v2.8M12 4.6v2.8" stroke="#fff" strokeWidth="0.9" strokeLinecap="round" />
+        </svg>
+      )}
+    </span>
   )
 }
 
@@ -589,6 +629,83 @@ function ScoreCard({ game, onOpenSummary, onOpenTeam, isFavorite, onToggleFavori
           </div>
         )}
       </div>
+      <LiveLine game={game} />
+    </div>
+  )
+}
+
+// Relative luminance (0 black – 1 white) of a "#rrggbb" color.
+function luminance(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => {
+    const c = parseInt(hex.slice(i, i + 2), 16) / 255
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+  })
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b
+}
+
+/**
+ * Team colors for the win-probability edge: each team's main color unless
+ * it would vanish against the card in light or dark mode (near-black,
+ * white…), then its alternate. If both teams land on near-identical colors,
+ * the home team switches to its alternate.
+ */
+function barColors(awayColors = [], homeColors = []) {
+  const visible = (c) => c && luminance(c) > 0.03 && luminance(c) < 0.85
+  const pick = ([main, alt], skip) => [main, alt].find((c) => visible(c) && c !== skip) || null
+  const rgb = (c) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16))
+  const close = (a, b) => Math.hypot(...rgb(a).map((v, i) => v - rgb(b)[i])) < 90
+  const away = pick(awayColors)
+  let home = pick(homeColors)
+  if (away && home && close(away, home)) home = pick(homeColors, home) || home
+  return [away, home]
+}
+
+/**
+ * Bottom row of a live card: down & distance for football (tagged in the
+ * red zone) on the left, ESPN's win probability on the right: the favored
+ * team's share and a small bar split in the two teams' colors (away left,
+ * home right). All from the scoreboard (game.situation), no extra requests.
+ */
+function LiveLine({ game }) {
+  if (game.status !== 'live' && game.status !== 'halftime') return null
+  const s = game.situation || {}
+  const football = game.sport === 'nfl' || game.sport === 'college-football'
+  const down = football && game.status === 'live' ? s.downDistanceText || null : null
+  const prob = s.lastPlay?.probability
+  const hasProb = Number.isFinite(prob?.homeWinPercentage) && Number.isFinite(prob?.awayWinPercentage)
+  if (!down && !hasProb) return null
+
+  let win = null
+  if (hasProb) {
+    const [awayColor, homeColor] = barColors(game.awayColors, game.homeColors)
+    const pct = (p) => (p >= 0.995 ? '>99%' : p <= 0.005 ? '<1%' : `${Math.round(100 * p)}%`)
+    const name = (side) => game[`${side}Abbreviation`] || game[`${side}ShortName`]
+    const fav = prob.homeWinPercentage >= prob.awayWinPercentage ? 'home' : 'away'
+    win = {
+      text: `${name(fav)} ${pct(prob[`${fav}WinPercentage`])}`,
+      label: `Win probability: ${name('away')} ${pct(prob.awayWinPercentage)}, ${name('home')} ${pct(prob.homeWinPercentage)}`,
+      awayWidth: `${100 * prob.awayWinPercentage}%`,
+      awayColor,
+      homeColor,
+    }
+  }
+  return (
+    <div className="card-live-line">
+      {down && (
+        <span className="card-down">
+          {s.isRedZone && <span className="red-zone-tag">Red zone</span>}
+          {down}
+        </span>
+      )}
+      {win && (
+        <span className="card-win-prob" role="img" aria-label={win.label} title={win.label}>
+          <span className="wp-text">{win.text}</span>
+          <span className="wp-bar">
+            <span style={{ width: win.awayWidth, background: win.awayColor || undefined }} />
+            <span style={{ background: win.homeColor || undefined }} />
+          </span>
+        </span>
+      )}
     </div>
   )
 }
@@ -798,6 +915,11 @@ function GameSummary({ game, onBack, onOpenTeam }) {
     () => (isFootball(game.sport) && gameState === 'live' ? getFootballSituation(summaryData, game) : null),
     [summaryData, game, gameState],
   )
+  const efficiency = useMemo(() => getFootballEfficiency(summaryData, game.sport), [summaryData, game.sport])
+  const teamStats = useMemo(
+    () => (awayTeam || homeTeam ? getTeamStats(awayTeam, homeTeam, game, efficiency) : null),
+    [awayTeam, homeTeam, game, efficiency],
+  )
   const injuries = useMemo(() => getInjuries(summaryData), [summaryData])
   const gameInfoRows = useMemo(() => getGameInfo(summaryData), [summaryData])
   const seasonSeries = getSeasonSeries(summaryData)
@@ -1006,102 +1128,73 @@ function GameSummary({ game, onBack, onOpenTeam }) {
   }
 
   // Reusable: Team Stats compact bar chart (used in live/final sidebar)
+  // One comparison row: away value, label, home value, and a bar of each
+  // side's share in team colors. The better side is bold (see getTeamStats).
+  const renderStatRow = (r) => (
+    <div key={r.key} className="ts-row">
+      <div className="ts-values">
+        <span className={r.better === 'away' ? 'lead' : ''}>{r.away}</span>
+        <span className="ts-label" title={STAT_HELP[r.key]}>{r.label}</span>
+        <span className={r.better === 'home' ? 'lead' : ''}>{r.home}</span>
+      </div>
+      <div className="ts-bar">
+        <span style={{ width: `${r.awayShare}%`, background: awayColor }} />
+        <span style={{ background: homeColor }} />
+      </div>
+    </div>
+  )
+
+  const renderTeamsHeader = (size) => (
+    <div className="ts-teams">
+      <span>
+        <span className="ts-logo" style={{ width: size, height: size }}><TeamLogo name={game.awayTeam} logoUrl={awayTeamLogo} /></span>
+        {game.awayAbbreviation}
+      </span>
+      <span>
+        {game.homeAbbreviation}
+        <span className="ts-logo" style={{ width: size, height: size }}><TeamLogo name={game.homeTeam} logoUrl={homeTeamLogo} /></span>
+      </span>
+    </div>
+  )
+
   const renderTeamStatsSidebar = () => {
-    if (!awayTeam?.statistics) return null
+    if (!teamStats?.featured.length) return null
     return (
       <div className="standings-section">
         <div className="section-header">
           <h3>TEAM STATS</h3>
         </div>
-        <div className="boxscore-header-teams-unified" style={{ marginBottom: '15px' }}>
-          <div className="boxscore-header-team-unified">
-            <div className="boxscore-header-logo" style={{ width: '20px', height: '20px' }}>
-              <TeamLogo name={game.awayTeam} logoUrl={awayTeamLogo} />
-            </div>
-            <span style={{ fontSize: '0.7rem', fontWeight: '700' }}>{game.awayAbbreviation}</span>
-          </div>
-          <div className="boxscore-header-team-unified">
-            <span style={{ fontSize: '0.7rem', fontWeight: '700' }}>{game.homeAbbreviation}</span>
-            <div className="boxscore-header-logo" style={{ width: '20px', height: '20px' }}>
-              <TeamLogo name={game.homeTeam} logoUrl={homeTeamLogo} />
-            </div>
-          </div>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-          {awayTeam.statistics.slice(0, 5).map((stat, idx) => {
-            const homeStat = homeTeam?.statistics?.[idx]
-            const awayVal = parseNumericValue(stat.displayValue ?? stat.value)
-            const homeVal = parseNumericValue(homeStat?.displayValue ?? homeStat?.value)
-            const total = (isNaN(awayVal) ? 0 : awayVal) + (isNaN(homeVal) ? 0 : homeVal)
-            const awayP = total > 0 ? (awayVal / total) * 100 : 50
-            const homeP = total > 0 ? (homeVal / total) * 100 : 50
-            return (
-              <div key={idx}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: '700', marginBottom: '5px' }}>
-                  <span>{stat.displayValue}</span>
-                  <span style={{ color: 'var(--text-muted)', fontWeight: '600' }}>{stat.label || stat.name}</span>
-                  <span>{homeStat?.displayValue}</span>
-                </div>
-                <div className="boxscore-row-bar" style={{ height: '4px' }}>
-                  <div className="boxscore-row-bar-segment away" style={{ width: `${awayP}%`, background: awayColor }} />
-                  <div className="boxscore-row-bar-segment home" style={{ width: `${homeP}%`, background: homeColor }} />
-                </div>
-              </div>
-            )
-          })}
-        </div>
+        {renderTeamsHeader(20)}
+        <div className="ts-list">{teamStats.featured.map(renderStatRow)}</div>
+        {teamStats.rows.length > teamStats.featured.length && (
+          <button type="button" className="ts-more" onClick={() => setDetailTab('teamstats')}>
+            All team stats →
+          </button>
+        )}
       </div>
     )
   }
 
-  // Reusable: Full Team Stats table (used in team-stats tab)
-  const renderTeamStatsTab = () => (
-    <div className="boxscore-container">
-      <table className="boxscore-table">
-        <thead>
-          <tr>
-            <th colSpan={3} className="boxscore-title-header">
-              <div className="boxscore-header-teams-unified">
-                <div className="boxscore-header-team-unified">
-                  <div className="boxscore-header-logo"><TeamLogo name={game.awayTeam} logoUrl={awayTeamLogo} /></div>
-                  <span style={{ color: '#e0e0e0' }}>{game.awayTeam}</span>
-                </div>
-                <div className="boxscore-header-team-unified">
-                  <div className="boxscore-header-logo"><TeamLogo name={game.homeTeam} logoUrl={homeTeamLogo} /></div>
-                  <span style={{ color: '#e0e0e0' }}>{game.homeTeam}</span>
-                </div>
-              </div>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {awayTeam?.statistics?.map((stat, idx) => {
-            const homeStat = homeTeam?.statistics?.[idx]
-            const awayVal = parseNumericValue(stat.displayValue ?? stat.value)
-            const homeVal = parseNumericValue(homeStat?.displayValue ?? homeStat?.value)
-            const total = (isNaN(awayVal) ? 0 : awayVal) + (isNaN(homeVal) ? 0 : homeVal)
-            const awayP = total > 0 ? (awayVal / total) * 100 : 50
-            const homeP = total > 0 ? (homeVal / total) * 100 : 50
-            return (
-              <tr key={idx}>
-                <td className="stat-label">{stat.label || stat.name}</td>
-                <td colSpan={2} className="boxscore-bar-cell">
-                  <div className="boxscore-row-with-values">
-                    <span className="boxscore-value away">{stat.displayValue}</span>
-                    <div className="boxscore-row-bar">
-                      <div className="boxscore-row-bar-segment away" style={{ width: `${awayP}%`, background: awayColor }} />
-                      <div className="boxscore-row-bar-segment home" style={{ width: `${homeP}%`, background: homeColor }} />
-                    </div>
-                    <span className="boxscore-value home">{homeStat?.displayValue}</span>
-                  </div>
-                </td>
-              </tr>
-            )
+  // Team Stats tab: every row, under group headings where a sport has them.
+  const renderTeamStatsTab = () => {
+    if (!teamStats?.rows.length) return null
+    let lastGroup
+    return (
+      <div className="ts-tab">
+        {renderTeamsHeader(26)}
+        <div className="ts-list">
+          {teamStats.rows.map((r) => {
+            const heading = r.group !== lastGroup && (r.group || lastGroup) ? <h4 key={`g-${r.group || 'box'}`} className="ts-group">{r.group || 'Box score'}</h4> : null
+            lastGroup = r.group
+            return [heading, renderStatRow(r)]
           })}
-        </tbody>
-      </table>
-    </div>
-  )
+        </div>
+        {teamStats.rows.some((r) => r.key === 'successRate') && (
+          <p className="ts-note">{STAT_HELP.successRate} {STAT_HELP.explosivePlays}</p>
+        )}
+      </div>
+    )
+  }
 
   // Reusable: Box Score tab content
   const renderBoxScoreTab = () => {
@@ -1898,7 +1991,7 @@ function GameSummary({ game, onBack, onOpenTeam }) {
     { id: 'teamstats', label: 'Team Stats' },
   ].filter((t) => {
     if (t.id === 'plays') return getAllPlays(summaryData, game.sport).length > 0
-    if (t.id === 'teamstats') return !!awayTeam?.statistics?.length
+    if (t.id === 'teamstats') return !!teamStats?.rows.length
     if (t.id === 'boxscore') return !!boxscore?.players?.length
     return true
   })
@@ -1983,21 +2076,37 @@ function GameSummary({ game, onBack, onOpenTeam }) {
   )
 }
 
+// The page the site was opened at (a shared /nfl/player/… link, say), read
+// once. Games open on their own date, once that day's scores have loaded.
+const INITIAL_ROUTE = typeof window === 'undefined' ? null : routeFrom(window.location)
+const INITIAL_GAME_DATE = INITIAL_ROUTE?.type === 'game' ? INITIAL_ROUTE.date : null
+let historySeeded = false
+
 function App() {
   const today = useMemo(() => stripTime(new Date()), [])
   const baseMonday = useMemo(() => getMonday(today), [today])
   const todayKey = useMemo(() => getDayKeyFromDate(today), [today])
 
-  const [weekOffset, setWeekOffset] = useState(0)
-  const [activeDay, setActiveDay] = useState(todayKey === 'sunday' ? 'sunday' : todayKey)
-  const [currentDate, setCurrentDate] = useState(() => new Date(today))
+  const [weekOffset, setWeekOffset] = useState(() =>
+    INITIAL_GAME_DATE ? Math.round((getMonday(INITIAL_GAME_DATE) - baseMonday) / MILLISECONDS_IN_DAY / 7) : 0,
+  )
+  const [activeDay, setActiveDay] = useState(() => {
+    const key = INITIAL_GAME_DATE ? getDayKeyFromDate(INITIAL_GAME_DATE) : todayKey
+    return DAY_KEYS.includes(key) ? key : 'monday'
+  })
+  const [currentDate, setCurrentDate] = useState(() => new Date(INITIAL_GAME_DATE || today))
   // The sport the visitor picked; null until they pick one (or the first
   // scores load picks the top sport in the bar for them).
   const [sportPick, setSportPick] = useState(null)
   // Navigation: a stack of detail views over the scores list, mirrored in
-  // browser history so the phone/browser back button walks back through it.
+  // browser history (and the URL, see lib/routes) so the phone/browser back
+  // button walks back through it.
   // Each entry is { type: 'game' | 'team' | 'player' | 'leaders', value }.
-  const [viewStack, setViewStack] = useState([])
+  const [viewStack, setViewStack] = useState(() =>
+    INITIAL_ROUTE && INITIAL_ROUTE.type !== 'game' ? [{ type: INITIAL_ROUTE.type, value: INITIAL_ROUTE.value }] : [],
+  )
+  // A shared game link waits here until its day's scoreboard has loaded.
+  const [pendingGame, setPendingGame] = useState(() => (INITIAL_ROUTE?.type === 'game' ? INITIAL_ROUTE : null))
   const [searchOpen, setSearchOpen] = useState(false)
   // The header button's box when search is opened from it (the panel grows out of it).
   const [searchOrigin, setSearchOrigin] = useState(null)
@@ -2020,7 +2129,8 @@ function App() {
     const followed = new Set(favorites.map((f) => barSport(f.sport)))
     return SPORT_BUTTONS.map((button, index) => {
       const games = scores.filter((g) => barSport(g.sport) === button.value)
-      return { ...button, index, live: games.some(isLive), hasGames: games.length > 0, followed: followed.has(button.value) }
+      const liveGames = games.filter(isLive).length
+      return { ...button, index, liveGames, live: liveGames > 0, hasGames: games.length > 0, followed: followed.has(button.value) }
     }).sort(
       (a, b) =>
         Number(b.live) - Number(a.live) ||
@@ -2032,7 +2142,18 @@ function App() {
   // Until the visitor picks, show the top sport. The pick is then locked in
   // (below), so the list doesn't switch sports when the order shifts.
   const selectedSport = sportPick ?? sportOrder[0].value
-  if (sportPick === null && !isLoading && scores.length) setSportPick(sportOrder[0].value)
+  // A shared game link: once its day has loaded, open the game over its
+  // sport's list (or just show the list if the game isn't on that day).
+  if (pendingGame && !isLoading && scores.length) {
+    const game = scores.find((g) => String(g.id) === pendingGame.id && g.sport === pendingGame.sport)
+    setPendingGame(null)
+    if (game) {
+      setViewStack([{ type: 'game', value: game }])
+      setSportPick(barSport(game.sport))
+    }
+  } else if (sportPick === null && !pendingGame && !isLoading && scores.length) {
+    setSportPick(sportOrder[0].value)
+  }
   const { openLogin } = useAuth()
   const { mode: themeMode, setMode: setThemeMode } = useTheme()
   const listScrollRef = useRef(0)
@@ -2048,6 +2169,24 @@ function App() {
   // (see openFromSearch).
   const pendingFreshView = useRef(null)
 
+  // Opened at a shared link: put the scores list underneath it in history,
+  // so Back goes to the list rather than off the site. (Once, even under
+  // StrictMode's double effects.)
+  useEffect(() => {
+    if (!INITIAL_ROUTE || historySeeded) return
+    historySeeded = true
+    const url = window.location.pathname + window.location.search
+    try {
+      window.history.replaceState({ qsDepth: 0 }, '', '/')
+      window.history.pushState({ qsDepth: 1 }, '', url)
+    } catch { /* ignore */ }
+  }, [])
+
+  // Browser tab title follows the page (player/team pages refine it once loaded).
+  useEffect(() => {
+    document.title = titleFor(topView)
+  }, [topView])
+
   // Browser/phone back button pops detail views.
   useEffect(() => {
     const onPop = (e) => {
@@ -2056,11 +2195,17 @@ function App() {
       if (fresh && !depth) {
         pendingFreshView.current = null
         setViewStack([fresh])
-        try { window.history.pushState({ qsDepth: 1 }, '') } catch { /* ignore */ }
+        try { window.history.pushState({ qsDepth: 1 }, '', pathFor(fresh) ?? '/') } catch { /* ignore */ }
         window.scrollTo(0, 0)
         return
       }
-      setViewStack((stack) => stack.slice(0, depth))
+      setViewStack((stack) => {
+        if (depth <= stack.length) return stack.slice(0, depth)
+        // Forward button: reopen the page from its URL (not games or
+        // leaderboards, which need data the URL doesn't hold).
+        const route = routeFrom(window.location)
+        return route && route.type !== 'game' ? [...stack, { type: route.type, value: route.value }] : stack
+      })
       if (!depth) requestAnimationFrame(() => window.scrollTo(0, listScrollRef.current))
     }
     window.addEventListener('popstate', onPop)
@@ -2096,8 +2241,8 @@ function App() {
   }, [baseMonday, weekOffset])
 
   const closeAllViews = () => {
-    if (window.history.state?.qsDepth) {
-      try { window.history.replaceState(null, '') } catch { /* ignore */ }
+    if (window.history.state?.qsDepth || window.location.pathname !== '/') {
+      try { window.history.replaceState(null, '', '/') } catch { /* ignore */ }
     }
     setViewStack([])
   }
@@ -2171,7 +2316,9 @@ function App() {
     if (sameAsTop) return
     const next = [...viewStack, { type, value }]
     setViewStack(next)
-    try { window.history.pushState({ qsDepth: next.length }, '') } catch { /* ignore */ }
+    // Leaderboards keep the URL of the page they were opened from.
+    const url = pathFor({ type, value }) ?? window.location.pathname + window.location.search
+    try { window.history.pushState({ qsDepth: next.length }, '', url) } catch { /* ignore */ }
     window.scrollTo(0, 0)
   }
 
@@ -2191,7 +2338,7 @@ function App() {
     const depth = window.history.state?.qsDepth || 0
     if (!depth) {
       setViewStack([{ type, value }])
-      try { window.history.pushState({ qsDepth: 1 }, '') } catch { /* ignore */ }
+      try { window.history.pushState({ qsDepth: 1 }, '', pathFor({ type, value }) ?? '/') } catch { /* ignore */ }
       window.scrollTo(0, 0)
       return
     }
@@ -2513,8 +2660,11 @@ function App() {
                   .join(' ')}
                 data-sport={button.value}
                 onClick={() => handleSportClick(button.value)}
+                aria-label={button.liveGames ? `${button.label}, ${button.liveGames} live` : undefined}
+                title={button.liveGames ? `${button.liveGames} live ${button.liveGames === 1 ? 'game' : 'games'}` : undefined}
               >
                 {button.label}
+                {button.liveGames > 0 && <span className="sport-live-count" aria-hidden="true">{button.liveGames}</span>}
               </button>
             ))}
           </div>

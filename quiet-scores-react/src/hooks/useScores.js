@@ -60,14 +60,25 @@ export function useScores(date) {
     }
   }, [loadScores])
 
+  // Refresh on a timer only while the tab is visible (a background tab would
+  // keep polling ESPN, and FotMob through our proxy, for nobody), and catch
+  // up the moment it's visible again.
   useEffect(() => {
     if (!date) return
 
     const interval = setInterval(() => {
-      loadScores({ silent: true })
+      if (!document.hidden) loadScores({ silent: true })
     }, hasLiveGames ? LIVE_REFRESH_INTERVAL : IDLE_REFRESH_INTERVAL)
 
-    return () => clearInterval(interval)
+    const onVisible = () => {
+      if (!document.hidden) loadScores({ silent: true })
+    }
+    document.addEventListener('visibilitychange', onVisible)
+
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
   }, [date, hasLiveGames, loadScores])
 
   return {
