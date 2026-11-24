@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { searchEspn, SPORT_LABEL } from '../lib/players'
+import { searchEspn } from '../lib/players'
 import { usePersistentState } from '../hooks/usePersistentState'
 
 function SearchIcon({ size = 18 }) {
@@ -59,7 +59,7 @@ function highlight(text, query) {
   )
 }
 
-export function SearchPalette({ onClose, onOpenTeam, onOpenPlayer, favorites = [], origin = null }) {
+export function SearchPalette({ onClose, onOpenTeam, onOpenPlayer, origin = null }) {
   // Mounted only while open, so every open starts with fresh state.
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState('all')
@@ -140,18 +140,7 @@ export function SearchPalette({ onClose, onOpenTeam, onOpenPlayer, favorites = [
   // Flat list of selectable rows in display order, used for keyboard nav.
   const sections = useMemo(() => {
     if (!hasQuery) {
-      const favs = favorites.map((f) => ({
-        kind: 'team',
-        key: `team:${f.sport}:${f.teamId}`,
-        sport: f.sport,
-        teamId: f.teamId,
-        name: f.name,
-        logo: f.logo,
-        subtitle: SPORT_LABEL[f.sport] || '',
-        favorite: true,
-      }))
       return [
-        favs.length && { title: 'Your teams', items: favs },
         recent.length && { title: 'Recent', items: recent, clearable: true },
       ].filter(Boolean)
     }
@@ -159,7 +148,7 @@ export function SearchPalette({ onClose, onOpenTeam, onOpenPlayer, favorites = [
       filter !== 'players' && results.teams.length && { title: 'Teams', items: results.teams },
       filter !== 'teams' && results.players.length && { title: 'Players', items: results.players },
     ].filter(Boolean)
-  }, [hasQuery, favorites, recent, results, filter])
+  }, [hasQuery, recent, results, filter])
 
   const flat = useMemo(() => sections.flatMap((s) => s.items), [sections])
   const activeIdx = Math.max(0, Math.min(active, flat.length - 1))
@@ -293,7 +282,6 @@ export function SearchPalette({ onClose, onOpenTeam, onOpenPlayer, favorites = [
                       <span className="sp-row-name">{hasQuery ? highlight(item.name, query) : item.name}</span>
                       <span className="sp-row-sub">{item.subtitle}</span>
                     </span>
-                    {item.favorite && <span className="sp-fav">★</span>}
                     {isActive && <kbd className="sp-enter" aria-hidden="true">↵</kbd>}
                   </button>
                 )

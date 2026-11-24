@@ -94,7 +94,7 @@ function StandingsTable({ group, teamId, compact }) {
   )
 }
 
-export function TeamPage({ team, onBack, isFavorite, onToggleFavorite, onOpenPlayer }) {
+export function TeamPage({ team, onBack, onOpenPlayer }) {
   const [data, setData] = useState(null)
   const [tab, setTab] = useState('overview')
 
@@ -140,7 +140,6 @@ export function TeamPage({ team, onBack, isFavorite, onToggleFavorite, onOpenPla
   const total = records.find((r) => r.type === 'total') || records[0]
   const home = records.find((r) => r.type === 'home')
   const road = records.find((r) => r.type === 'road' || r.type === 'away')
-  const favorite = !!isFavorite?.(team.sport, team.teamId)
   const next = upcoming[0]
 
   const scoring = useMemo(() => {
@@ -213,16 +212,6 @@ export function TeamPage({ team, onBack, isFavorite, onToggleFavorite, onOpenPla
                   <span className="pg-next-name">{next.home || next.neutral ? 'vs' : '@'} {next.opponent}</span>
                   <span className="pg-next-when">{formatWhen(next.date)}</span>
                 </div>
-              )}
-              {onToggleFavorite && (
-                <button
-                  type="button"
-                  className={`tp-follow ${favorite ? 'on' : ''}`}
-                  aria-pressed={favorite}
-                  onClick={() => onToggleFavorite({ sport: team.sport, teamId: team.teamId, name, logo, abbreviation: t?.abbreviation || team.teamAbbreviation })}
-                >
-                  {favorite ? '★ Following' : '☆ Follow'}
-                </button>
               )}
             </div>
           </div>

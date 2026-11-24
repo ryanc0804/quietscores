@@ -114,7 +114,6 @@
 .sp-row-name { font-weight: 700; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sp-row-name mark { background: none; color: var(--accent-primary); }
 .sp-row-sub { font-size: 0.8rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sp-fav { color: var(--fav); font-size: 0.85rem; }
 .sp-enter {
     font: inherit; font-size: 0.7rem; color: var(--text-muted);
     border: 1px solid var(--border-secondary); border-radius: 5px; padding: 1px 6px;
@@ -247,13 +246,6 @@
 .tp-hero-record b { font-weight: 800; color: #fff; }
 .tp-hero-record .dim { color: rgba(255, 255, 255, 0.72); }
 .tp-hero-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-.tp-follow {
-    height: 44px; padding: 0 20px; border-radius: 999px; cursor: pointer;
-    font: inherit; font-weight: 800; font-size: 0.88rem;
-    border: 1.5px solid rgba(255, 255, 255, 0.6); background: transparent; color: #fff;
-}
-.tp-follow:hover { background: rgba(255, 255, 255, 0.1); }
-.tp-follow.on { background: var(--fav); border-color: var(--fav); color: #1a1300; }
 
 .tp-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 8px; }
 .tp-form-game {
