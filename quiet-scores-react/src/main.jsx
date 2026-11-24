@@ -5,7 +5,6 @@ import './styles.css'
 import './details.css'
 import './pages.css'
 import App from './App.jsx'
-import { AuthProvider } from './hooks/useAuth'
 // Vercel Web Analytics: cookieless page views (including the in-app page
 // URLs). Only reports on the deployed site; does nothing on localhost.
 import { Analytics } from '@vercel/analytics/react'
@@ -74,9 +73,7 @@ class ErrorBoundary extends React.Component {
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ErrorBoundary>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
+      <App />
       <Analytics />
     </ErrorBoundary>
   </StrictMode>,
